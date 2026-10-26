@@ -21,6 +21,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { XMLParser } from "fast-xml-parser";
+import { parse as parseHtml } from "node-html-parser";
 import {
   ROOT, MEDIA_DIR, POSTS_DIR, loadConfig, writePost, listPosts, saveImage, toSiteUrl, excerpt,
 } from "./lib/util.mjs";
@@ -39,6 +40,7 @@ const STORE = cfg.shopify.storeUrl.replace(/\/$/, "");
 const API_VERSION = process.env.SHOPIFY_API_VERSION || "2026-07";
 
 const log = (...a) => console.log(...a);
+const existingPosts = new Set(listPosts().map((p) => `${p.journal}/${p.handle}`));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function getText(url, tries = 3) {
@@ -127,24 +129,109 @@ export function parseAtom(feedXml, journal) {
   });
 }
 
+/* Listing pages (/blogs/<blog>?page=N) reach every article, unlike the
+   Atom feed, which only carries the newest few dozen. */
+const MONTHS = "January|February|March|April|May|June|July|August|September|October|November|December";
+function parseDisplayDate(text) {
+  const m = String(text || "").match(new RegExp(`(${MONTHS})\\s+(\\d{1,2}),\\s*(\\d{4})`));
+  if (!m) return null;
+  const month = String(MONTHS.split("|").indexOf(m[1]) + 1).padStart(2, "0");
+  return `${m[3]}-${month}-${m[2].padStart(2, "0")}T12:00:00+09:00`;
+}
+
+export function parseListing(html, blog) {
+  const root = parseHtml(html);
+  const out = new Map();
+  const re = new RegExp(`/blogs/${blog}/([^/?#]+)/?$`);
+  for (const a of root.querySelectorAll("a[href]")) {
+    const href = a.getAttribute("href");
+    const path = href.replace(/^https?:\/\/[^/]+/, "").split("?")[0].split("#")[0];
+    const m = path.match(re);
+    if (!m || m[1] === "tagged") continue;
+    const handle = decodeURIComponent(m[1]);
+    if (out.has(handle)) continue;
+    // The card around the link holds the date.
+    let card = a;
+    for (let i = 0; i < 6 && card.parentNode; i++) {
+      card = card.parentNode;
+      if (card.querySelector?.("time") || ["li", "article"].includes(card.rawTagName)) break;
+    }
+    const time = card.querySelector?.("time");
+    const date = time?.getAttribute("datetime") || parseDisplayDate(time?.text || card.text);
+    out.set(handle, { journal: blog, handle, link: new URL(path, STORE).href, date });
+  }
+  return [...out.values()];
+}
+
+export function parseArticlePage(html) {
+  const root = parseHtml(html);
+  const meta = (p) => root.querySelector(`meta[property="${p}"]`)?.getAttribute("content");
+  const body =
+    root.querySelector(".article-template__content") ||
+    root.querySelector('[itemprop="articleBody"]') ||
+    root.querySelector(".article__content") ||
+    root.querySelector("article .rte") ||
+    root.querySelector(".rte");
+  const time = root.querySelector("article time[datetime], .article-template time[datetime]");
+  return {
+    title: (meta("og:title") || root.querySelector("h1")?.text || "").trim(),
+    html: body ? body.innerHTML.trim() : "",
+    cover: (meta("og:image:secure_url") || meta("og:image") || "").replace(/^http:/, "https:") || null,
+    date: meta("article:published_time") || time?.getAttribute("datetime") || null,
+  };
+}
+
 async function fromAtom() {
   const out = [];
   for (const blog of BLOGS) {
-    const seen = new Set();
+    const seen = new Map();
+    // 1) Atom feed: full content for the newest articles.
+    const feed = await getText(`${STORE}/blogs/${blog}.atom`);
+    if (feed) for (const e of parseAtom(feed, blog)) if (e.handle && !seen.has(e.handle)) seen.set(e.handle, e);
+    log(`  ${blog}: feed → ${seen.size} articles`);
+
+    // 2) Listing pages: every other article.
+    const listed = [];
     for (let page = 1; page < 500; page++) {
-      const feed = await getText(`${STORE}/blogs/${blog}.atom?page=${page}`);
-      if (!feed) break;
-      const entries = parseAtom(feed, blog).filter((e) => e.handle && !seen.has(e.handle));
-      if (!entries.length) break;
-      entries.forEach((e) => seen.add(e.handle));
-      out.push(...entries);
-      log(`  ${blog}: feed page ${page} → ${entries.length} articles`);
-      if (out.length >= LIMIT) break;
+      const html = await getText(`${STORE}/blogs/${blog}?page=${page}`);
+      if (!html) break;
+      const items = parseListing(html, blog).filter((i) => !listed.some((l) => l.handle === i.handle));
+      if (!items.length) break;
+      listed.push(...items);
+      if (page % 5 === 0) log(`  ${blog}: listing page ${page} → ${listed.length} articles so far`);
+      await sleep(300);
     }
+    log(`  ${blog}: listing → ${listed.length} articles`);
+
+    for (const item of listed) {
+      if (out.length + seen.size >= LIMIT && !seen.has(item.handle)) break;
+      if (seen.has(item.handle)) {
+        const e = seen.get(item.handle);
+        if (!e.date) e.date = item.date;
+        continue;
+      }
+      if (!FORCE && existingPosts.has(`${blog}/${item.handle}`)) {
+        seen.set(item.handle, { ...item, skip: true });
+        continue;
+      }
+      const html = await getText(item.link);
+      if (!html) { console.warn(`    ! not found: ${item.link}`); continue; }
+      const page = parseArticlePage(html);
+      if (!page.html) console.warn(`    ! couldn't find the article body on ${item.link}`);
+      seen.set(item.handle, {
+        journal: blog, handle: item.handle, link: item.link,
+        title: page.title || item.handle, date: page.date || item.date,
+        html: page.html, summary: "", cover: page.cover, tags: [], draft: false,
+      });
+      await sleep(300);
+    }
+    // Newest first, same as the listing.
+    const order = new Map(listed.map((l, i) => [l.handle, i]));
+    out.push(...[...seen.values()].sort((a, b) => (order.get(a.handle) ?? -1) - (order.get(b.handle) ?? -1)));
   }
   // Atom feeds don't carry the cover image; read it from each article page's og:image.
   for (const a of out.slice(0, LIMIT)) {
-    if (a.cover) continue;
+    if (a.cover || a.skip) continue;
     const html = await getText(a.link || `${STORE}/blogs/${a.journal}/${encodeURIComponent(a.handle)}`);
     const m = html && html.match(/<meta[^>]+property=["']og:image(?::secure_url)?["'][^>]+content=["']([^"']+)["']/i);
     if (m) a.cover = m[1].replace(/^http:/, "https:");
@@ -221,7 +308,7 @@ async function main() {
   articles = articles.slice(0, LIMIT);
   log(`Found ${articles.length} articles.`);
   if (DRY) {
-    articles.forEach((a) => log(`  [${a.journal}] ${a.date?.slice(0, 10)}  ${a.title}`));
+    articles.forEach((a) => log(`  [${a.journal}] ${a.date?.slice(0, 10) || "????-??-??"}  ${a.title || a.handle}${a.skip ? "  (already imported)" : ""}`));
     return;
   }
 

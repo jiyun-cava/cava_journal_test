@@ -12,7 +12,7 @@ const execFileAsync = promisify(execFile);
 import sharp from "sharp";
 import { handleize, ROOT } from "../scripts/lib/util.mjs";
 import { parseCaption } from "../scripts/sync-instagram.mjs";
-import { parseAtom } from "../scripts/import-shopify.mjs";
+import { parseAtom, parseListing, parseArticlePage } from "../scripts/import-shopify.mjs";
 
 let passed = 0;
 const t = (name, fn) => Promise.resolve(fn()).then(() => { passed++; console.log("  ✓", name); });
@@ -43,6 +43,21 @@ await t("Atom feed parsing", () => {
   assert.equal(entries[0].title, "테스트 작가 — 첫 번째 테스트 글");
   assert.ok(entries[0].html.includes("<p>"));
   assert.deepEqual(entries[1].tags, ["essay"]);
+});
+
+await t("listing pages: every article link with its date", () => {
+  const items = parseListing(fs.readFileSync(path.join(ROOT, "test/fixtures/listing.html"), "utf8"), "cavajournal");
+  assert.deepEqual(items.map((i) => i.handle), ["테스트-첫-글", "second-post"]);
+  assert.equal(items[0].date, "2026-07-08T01:00:00Z");
+  assert.equal(items[1].date, "2021-03-03T12:00:00+09:00");
+});
+
+await t("article page: title, cover and full body", () => {
+  const a = parseArticlePage(fs.readFileSync(path.join(ROOT, "test/fixtures/article.html"), "utf8"));
+  assert.equal(a.title, "테스트 — 첫 글");
+  assert.equal(a.cover, "https://example-store.test/cdn/shop/articles/cover.jpg?v=1");
+  assert.match(a.html, /^<p>첫 단락.<\/p><div><p>안쪽 div.<\/p><\/div><h6>/);
+  assert.doesNotMatch(a.html, /share/);
 });
 
 /* ---- full sync in a temp copy ---- */
