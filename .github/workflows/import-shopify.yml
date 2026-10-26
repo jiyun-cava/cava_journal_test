@@ -1,0 +1,68 @@
+# One-click migration: copies the articles from your Shopify blogs into this
+# repository, then publishes the site.  Actions tab → "Import from Shopify" → Run workflow.
+name: Import from Shopify
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Only import this many articles (leave empty for all)"
+        required: false
+        default: ""
+      blog:
+        description: "Only this blog: cavajournal or nowjournal (empty = both)"
+        required: false
+        default: ""
+      force:
+        description: "Overwrite articles that were already imported"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: write   # to start the deploy workflow afterwards
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Import articles and images
+        env:
+          # Optional, for drafts and tags (see README): set these as repository secrets.
+          SHOPIFY_STORE_DOMAIN: ${{ secrets.SHOPIFY_STORE_DOMAIN }}
+          SHOPIFY_ADMIN_TOKEN: ${{ secrets.SHOPIFY_ADMIN_TOKEN }}
+        run: |
+          ARGS=""
+          [ -n "${{ inputs.limit }}" ] && ARGS="$ARGS --limit ${{ inputs.limit }}"
+          [ -n "${{ inputs.blog }}" ]  && ARGS="$ARGS --blog ${{ inputs.blog }}"
+          [ "${{ inputs.force }}" = "true" ] && ARGS="$ARGS --force"
+          node scripts/import-shopify.mjs $ARGS
+
+      - name: Commit
+        id: commit
+        run: |
+          git config user.name  "cava-bot"
+          git config user.email "cava-bot@users.noreply.github.com"
+          git add -A src/posts src/media
+          if git diff --cached --quiet; then
+            echo "Nothing new to commit."
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
+          else
+            git commit -m "Import articles from Shopify"
+            git push
+            echo "pushed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish the site
+        if: steps.commit.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy.yml --ref "${{ github.ref_name }}"

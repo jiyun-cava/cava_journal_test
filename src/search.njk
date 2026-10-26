@@ -1,0 +1,15 @@
+---
+layout: layouts/base.njk
+permalink: /search/
+title: Search
+---
+<section class="search">
+  <h1 class="page__title">Search</h1>
+  <form class="search__form" role="search" onsubmit="return false">
+    <label class="visually-hidden" for="q">Search articles</label>
+    <input id="q" name="q" type="search" placeholder="작가, 제목, 키워드" autocomplete="off" autofocus>
+  </form>
+  <p class="search__status" id="search-status" aria-live="polite"></p>
+  <ul class="search__results" id="search-results"></ul>
+</section>
+<script src="/assets/js/search.js" defer></script>

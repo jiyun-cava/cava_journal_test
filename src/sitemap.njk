@@ -1,0 +1,15 @@
+---
+permalink: /sitemap.xml
+eleventyExcludeFromCollections: true
+---
+<?xml version="1.0" encoding="utf-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>{{ "/" | absUrl }}</loc></url>
+  <url><loc>{{ "/about/" | absUrl }}</loc></url>
+  {%- for j in site.journals %}
+  <url><loc>{{ ('/blogs/' + j.key + '/') | absUrl }}</loc></url>
+  {%- endfor %}
+  {%- for post in collections.allPosts %}
+  <url><loc>{{ post.url | absUrl }}</loc><lastmod>{{ post.date | isoDate }}</lastmod></url>
+  {%- endfor %}
+</urlset>

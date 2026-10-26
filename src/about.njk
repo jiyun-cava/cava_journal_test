@@ -1,0 +1,17 @@
+---
+layout: layouts/base.njk
+permalink: /about/
+title: About
+---
+<section class="page">
+  <h1 class="page__title">ABOUT {{ site.name }}</h1>
+  <div class="page__body">
+    {%- for para in site.about %}
+    <p>{{ para }}</p>
+    {%- endfor %}
+    <p class="page__contact">
+      <a href="https://instagram.com/{{ site.instagramHandle }}" rel="noopener">Instagram @{{ site.instagramHandle }}</a><br>
+      <a href="mailto:{{ site.email }}">{{ site.email }}</a>
+    </p>
+  </div>
+</section>

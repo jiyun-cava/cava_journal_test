@@ -1,0 +1,39 @@
+---
+layout: layouts/base.njk
+permalink: /
+bodyClass: is-home
+---
+{%- set latest = collections.allPosts | first %}
+{%- if latest %}
+<section class="home-lead">
+  <ul class="grid grid--lead">
+    {%- set post = latest %}{% set featured = true %}{% set showJournal = true %}
+    {% include "partials/card.njk" %}
+    {%- set featured = false %}
+  </ul>
+</section>
+{%- endif %}
+
+{%- for j in site.journals %}
+{%- set posts = collections[j.key] | take(7) %}
+{%- if posts.length %}
+<section class="home-section">
+  <div class="home-section__head">
+    <h2 class="home-section__title">{{ j.title }}</h2>
+    <a class="home-section__all" href="/blogs/{{ j.key }}/">View all</a>
+  </div>
+  <ul class="grid">
+    {%- for post in posts %}
+      {%- if post.url != latest.url and loop.index0 < 7 %}
+      {%- set showJournal = false %}
+      {% include "partials/card.njk" %}
+      {%- endif %}
+    {%- endfor %}
+  </ul>
+</section>
+{%- endif %}
+{%- endfor %}
+
+<section class="home-ig">
+  <p>Follow <a href="https://instagram.com/{{ site.instagramHandle }}" rel="noopener">@{{ site.instagramHandle }}</a> — new posts appear in the journal automatically.</p>
+</section>

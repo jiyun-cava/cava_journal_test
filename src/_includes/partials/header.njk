@@ -1,0 +1,37 @@
+<header class="site-header">
+  <div class="site-header__inner">
+    <button class="icon-btn menu-toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Menu">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M3 7h18M3 12h18M3 17h18" stroke="currentColor" stroke-width="1.4" fill="none"/></svg>
+    </button>
+
+    <nav id="site-nav" class="site-nav" aria-label="Main">
+      <ul>
+        {%- set groups = [] %}
+        {%- for j in site.journals %}
+          {%- if j.menuGroup %}
+          <li class="has-sub">
+            <span class="site-nav__group">{{ j.menuGroup }}</span>
+            <ul class="sub">
+              <li><a href="/blogs/{{ j.key }}/" {% if page.url.startsWith('/blogs/' + j.key + '/') %}aria-current="page"{% endif %}>{{ j.menuLabel }}</a></li>
+            </ul>
+          </li>
+          {%- else %}
+          <li><a href="/blogs/{{ j.key }}/" {% if page.url.startsWith('/blogs/' + j.key + '/') %}aria-current="page"{% endif %}>{{ j.menuLabel }}</a></li>
+          {%- endif %}
+        {%- endfor %}
+        <li class="site-nav__mobile-only"><a href="/about/">About</a></li>
+        <li class="site-nav__mobile-only"><a href="https://instagram.com/{{ site.instagramHandle }}" rel="noopener">Instagram</a></li>
+      </ul>
+    </nav>
+
+    <a class="wordmark" href="/" aria-label="{{ site.name }} home">
+      {%- if site.logo %}<img src="{{ site.logo }}" alt="{{ site.name }}" width="120" height="40" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'{{ site.name }}'}))">{% else %}<span>{{ site.name }}</span>{% endif -%}
+    </a>
+
+    <div class="site-header__tools">
+      <a class="icon-btn" href="/search/" aria-label="Search">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.4" fill="none"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="1.4"/></svg>
+      </a>
+    </div>
+  </div>
+</header>

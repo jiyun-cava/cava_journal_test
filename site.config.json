@@ -1,0 +1,51 @@
+{
+  "name": "CAVA LIFE",
+  "url": "https://www.ca-va.life",
+  "lang": "ko",
+  "timezone": "Asia/Seoul",
+  "description": "카바 라이프는 동시대 예술과 문화 창작을 소개하고 연결하는 큐레이션 기반 플랫폼입니다.",
+  "about": [
+    "카바 라이프는 동시대 예술과 문화 창작을 소개하고 연결하는 큐레이션 기반 플랫폼입니다.",
+    "2018년 온라인 플랫폼으로 시작해 다양한 분야의 작가들과 협업하며 전시, 콘텐츠, 문화 프로그램을 통해 동시대 창작 환경을 다양한 방식으로 전개해왔습니다.",
+    "예술·디자인·기술·라이프스타일이 교차하는 지점에서 동시대 문화의 흐름을 읽고 이를 콘텐츠와 프로그램으로 구성하며, 창작자와 관람자, 다양한 문화 주체를 연결하는 플랫폼으로 기능합니다."
+  ],
+  "email": "info@ca-va.life",
+  "instagramHandle": "cava.life",
+  "logo": "/media/brand/logo.png",
+  "postsPerPage": 12,
+
+  "journals": [
+    {
+      "key": "nowjournal",
+      "title": "NOW Journal",
+      "menuLabel": "CAVA WEEKLY",
+      "menuGroup": "NOW Journal"
+    },
+    {
+      "key": "cavajournal",
+      "title": "MORE Journal",
+      "menuLabel": "MORE Journal"
+    }
+  ],
+
+  "shopify": {
+    "storeUrl": "https://www.ca-va.life",
+    "logoUrl": "https://www.ca-va.life/cdn/shop/files/CAVA_logo_4add102e-0715-4070-b2b3-e6063d33484c.png",
+    "blogs": ["cavajournal", "nowjournal"]
+  },
+
+  "instagram": {
+    "apiVersion": "v26.0",
+    "importAfter": "2026-10-26T00:00:00+09:00",
+    "defaultJournal": "cavajournal",
+    "routeByHashtag": {
+      "#nowjournal": "nowjournal",
+      "#cavaweekly": "nowjournal",
+      "#morejournal": "cavajournal"
+    },
+    "requireHashtag": null,
+    "skipHashtags": ["#notjournal"],
+    "removeRoutingHashtags": true,
+    "maxVideoMB": 60
+  }
+}

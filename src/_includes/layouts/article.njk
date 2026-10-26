@@ -1,0 +1,43 @@
+---
+layout: layouts/base.njk
+bodyClass: is-article
+---
+{%- set list = collections[journal] %}
+{%- set nav = list | prevNext(page.url) %}
+<article class="article">
+  {%- if cover %}
+  <figure class="article__cover">
+    <img src="{{ cover }}" alt="{{ title }}" fetchpriority="high">
+  </figure>
+  {%- endif %}
+
+  <header class="article__header">
+    <a class="article__journal" href="/blogs/{{ journal }}/">{{ journal | journalTitle }}</a>
+    <h1 class="article__title">{{ title }}</h1>
+    <p class="article__meta">
+      <time datetime="{{ page.date | isoDate }}">{{ page.date | displayDate }}</time>
+    </p>
+  </header>
+
+  <div class="article__body">
+    {{ content | safe }}
+  </div>
+
+  {%- if tags and tags.length %}
+  <ul class="article__tags">{% for t in tags %}<li>#{{ t }}</li>{% endfor %}</ul>
+  {%- endif %}
+
+  {%- if source == "instagram" and instagram_permalink %}
+  <p class="article__source">Originally posted on <a href="{{ instagram_permalink }}" rel="noopener">Instagram</a></p>
+  {%- endif %}
+
+  <div class="article__share">
+    <span>Share:</span>
+    <button class="share-btn" type="button" data-share data-title="{{ title }}" data-url="{{ page.url | absUrl }}">Copy link</button>
+  </div>
+
+  <nav class="article__nav" aria-label="More articles">
+    {%- if nav.newer %}<a class="article__nav-newer" href="{{ nav.newer.url }}"><small>Newer</small><span>{{ nav.newer.data.title }}</span></a>{% else %}<span></span>{% endif %}
+    {%- if nav.older %}<a class="article__nav-older" href="{{ nav.older.url }}"><small>Older</small><span>{{ nav.older.data.title }}</span></a>{% endif %}
+  </nav>
+</article>

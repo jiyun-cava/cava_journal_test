@@ -1,0 +1,18 @@
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <div class="site-footer__brand">
+      {%- if site.logo %}<img src="{{ site.logo }}" alt="{{ site.name }}" width="100" height="34" loading="lazy" onerror="this.remove()">{% endif %}
+      <a class="site-footer__about" href="/about/">ABOUT {{ site.name }}</a>
+    </div>
+    <ul class="site-footer__links">
+      {%- for j in site.journals %}
+      <li><a href="/blogs/{{ j.key }}/">{{ j.title }}</a></li>
+      {%- endfor %}
+    </ul>
+    <ul class="site-footer__links">
+      <li><a href="https://instagram.com/{{ site.instagramHandle }}" rel="noopener">Instagram</a></li>
+      <li><a href="mailto:{{ site.email }}">Email</a></li>
+    </ul>
+  </div>
+  <p class="site-footer__copy">© {{ build.year }}&nbsp;<a href="/">{{ site.name }}</a>.</p>
+</footer>

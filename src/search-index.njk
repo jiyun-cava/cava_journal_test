@@ -1,0 +1,9 @@
+---
+permalink: /search-index.json
+eleventyExcludeFromCollections: true
+---
+[
+{%- for post in collections.allPosts %}
+{{ { "t": post.data.title, "u": post.url, "d": (post.date | displayDate), "j": (post.data.journal | journalTitle), "a": (post.data.author or ""), "x": (post.data.excerpt or (post.content | excerpt(140))), "b": (post.content | stripHtml | truncate(3000, true, "")) } | json | safe }}{% if not loop.last %},{% endif %}
+{%- endfor %}
+]

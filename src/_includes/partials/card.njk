@@ -1,0 +1,19 @@
+<li class="card{% if featured %} card--featured{% endif %}">
+  <a class="card__link" href="{{ post.url }}" aria-label="Read more: {{ post.data.title }}">
+    <div class="card__media">
+      {%- if post.data.cover %}
+      <img src="{{ post.data.cover }}" alt="" loading="{{ 'eager' if featured else 'lazy' }}" decoding="async">
+      {%- else %}
+      <span class="card__placeholder" aria-hidden="true">{{ site.name }}</span>
+      {%- endif %}
+      {%- if post.data.source == "instagram" %}<span class="card__badge">Instagram</span>{% endif %}
+    </div>
+    <div class="card__body">
+      {%- if showJournal %}<p class="card__kicker">{{ post.data.journal | journalTitle }}</p>{% endif %}
+      <h2 class="card__title">{{ post.data.title }}</h2>
+      <time class="card__date" datetime="{{ post.date | isoDate }}">{{ post.date | displayDate }}</time>
+      <p class="card__excerpt">{{ post.data.excerpt or (post.content | excerpt(140)) }}</p>
+      <span class="card__more">Read more</span>
+    </div>
+  </a>
+</li>

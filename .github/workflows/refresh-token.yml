@@ -1,0 +1,39 @@
+# Instagram tokens last 60 days. This renews it every week and saves the new
+# one back into the INSTAGRAM_ACCESS_TOKEN secret, so the sync never stops.
+#
+# Needs one extra secret, GH_SECRETS_TOKEN: a fine-grained personal access
+# token for this repository with "Secrets: Read and write" permission
+# (GitHub's built-in token isn't allowed to edit secrets). See README.
+name: Refresh Instagram token
+
+on:
+  schedule:
+    - cron: "41 0 * * 1"   # Mondays 00:41 UTC (09:41 KST)
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Refresh token
+        id: refresh
+        env:
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+        run: node scripts/refresh-instagram-token.mjs
+
+      - name: Save new token as secret
+        env:
+          GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
+          NEW_TOKEN: ${{ steps.refresh.outputs.token }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::GH_SECRETS_TOKEN secret is missing, so the refreshed token could not be saved. See README › Token refresh."
+            exit 1
+          fi
+          printf '%s' "$NEW_TOKEN" | gh secret set INSTAGRAM_ACCESS_TOKEN --repo "${{ github.repository }}"
+          echo "Saved refreshed token."

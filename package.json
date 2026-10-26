@@ -1,0 +1,28 @@
+{
+  "name": "cava-life",
+  "version": "1.0.0",
+  "description": "CAVA LIFE — static journal site with Instagram sync",
+  "scripts": {
+    "start": "eleventy --serve",
+    "build": "eleventy",
+    "import": "node scripts/import-shopify.mjs",
+    "sync:instagram": "node scripts/sync-instagram.mjs",
+    "refresh:token": "node scripts/refresh-instagram-token.mjs",
+    "test": "node test/run.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@11ty/eleventy": "^3.1.7"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.11.2",
+    "html-entities": "^2.6.0",
+    "sharp": "^0.34.5"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  }
+}

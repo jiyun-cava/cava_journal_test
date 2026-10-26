@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xml:lang="en-US" xmlns="http://www.w3.org/2005/Atom" xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:s="http://jadedpixel.com/-/spec/shopify">
+  <id>https://example-store.test/blogs/cavajournal</id>
+  <title>Example – MORE Journal</title>
+  <entry>
+    <id>https://example-store.test/blogs/cavajournal/1</id>
+    <published>2026-07-08T10:00:00+09:00</published>
+    <updated>2026-07-08T10:00:00+09:00</updated>
+    <link rel="alternate" type="text/html" href="https://example-store.test/blogs/cavajournal/%ED%85%8C%EC%8A%A4%ED%8A%B8-%EC%9E%91%EA%B0%80-%EC%B2%AB-%EB%B2%88%EC%A7%B8-%ED%85%8C%EC%8A%A4%ED%8A%B8-%EA%B8%80"/>
+    <title>테스트 작가 — 첫 번째 테스트 글</title>
+    <author><name>Example Admin</name></author>
+    <content type="html">&lt;p&gt;테스트 본문입니다.&lt;/p&gt;&lt;p&gt;&lt;img src="https://cdn.shopify.com/s/files/1/0000/0000/files/test.jpg?v=123"&gt;&lt;/p&gt;</content>
+    <summary type="html">&lt;p&gt;테스트 요약&lt;/p&gt;</summary>
+  </entry>
+  <entry>
+    <id>https://example-store.test/blogs/cavajournal/2</id>
+    <published>2026-07-01T10:00:00+09:00</published>
+    <updated>2026-07-01T10:00:00+09:00</updated>
+    <link rel="alternate" type="text/html" href="https://example-store.test/blogs/cavajournal/second-test-post"/>
+    <title>Second test post</title>
+    <author><name>Example Admin</name></author>
+    <category term="essay"/>
+    <content type="html">&lt;p&gt;Body.&lt;/p&gt;</content>
+  </entry>
+</feed>

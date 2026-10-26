@@ -1,0 +1,29 @@
+---
+# Atom feed per journal at the same address Shopify used: /blogs/<journal>.atom
+pagination:
+  data: site.journals
+  size: 1
+  alias: j
+permalink: "/blogs/{{ j.key }}.atom"
+eleventyExcludeFromCollections: true
+---
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="{{ site.lang }}">
+  <title>{{ site.name }} – {{ j.title }}</title>
+  <link href="{{ ('/blogs/' + j.key + '/') | absUrl }}"/>
+  <link rel="self" href="{{ ('/blogs/' + j.key + '.atom') | absUrl }}"/>
+  <id>{{ ('/blogs/' + j.key + '/') | absUrl }}</id>
+  <updated>{{ build.time }}</updated>
+  {%- for post in collections[j.key] | take(30) %}
+  <entry>
+    <title>{{ post.data.title }}</title>
+    <link href="{{ post.url | absUrl }}"/>
+    <id>{{ post.url | absUrl }}</id>
+    <published>{{ post.date | isoDate }}</published>
+    <updated>{{ post.date | isoDate }}</updated>
+    {%- if post.data.author %}<author><name>{{ post.data.author }}</name></author>{% endif %}
+    <summary>{{ post.data.excerpt or (post.content | excerpt(200)) }}</summary>
+    <content type="html">{{ post.content }}</content>
+  </entry>
+  {%- endfor %}
+</feed>

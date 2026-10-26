@@ -1,0 +1,48 @@
+{
+  "data": [
+    {
+      "id": "1800000000000003",
+      "caption": "이번 주 작업실 풍경\n\n짧은 영상으로 기록해 둔 한 주.\n\n#nowjournal #작업실",
+      "media_type": "VIDEO",
+      "media_product_type": "REELS",
+      "media_url": "{{BASE}}/v/clip.mp4",
+      "thumbnail_url": "{{BASE}}/v/clip-thumb.jpg",
+      "permalink": "https://www.instagram.com/reel/TEST3/",
+      "timestamp": "2026-10-28T09:00:00+0000",
+      "username": "cava.life"
+    },
+    {
+      "id": "1800000000000004",
+      "caption": "비공개 메모\n\n사이트에 올리지 않을 게시물. #notjournal",
+      "media_type": "IMAGE",
+      "media_url": "{{BASE}}/i/private.jpg",
+      "permalink": "https://www.instagram.com/p/TEST4/",
+      "timestamp": "2026-10-27T09:00:00+0000",
+      "username": "cava.life"
+    },
+    {
+      "id": "1800000000000001",
+      "caption": "홍길동 — 어느 오후의 산책\n\n테스트용 첫 단락입니다. 함께 걸은 @someone 에게 고마움을.\n둘째 줄은 줄바꿈으로 이어집니다.\n\n두 번째 단락. 자세한 내용은 https://example.com 에서.\n\n#산책 #morejournal",
+      "media_type": "CAROUSEL_ALBUM",
+      "permalink": "https://www.instagram.com/p/TEST1/",
+      "timestamp": "2026-10-26T12:00:00+0000",
+      "username": "cava.life",
+      "children": {
+        "data": [
+          { "id": "c1", "media_type": "IMAGE", "media_url": "{{BASE}}/i/a.jpg" },
+          { "id": "c2", "media_type": "IMAGE", "media_url": "{{BASE}}/i/b.jpg" },
+          { "id": "c3", "media_type": "IMAGE", "media_url": "{{BASE}}/i/c.jpg" }
+        ]
+      }
+    },
+    {
+      "id": "1800000000000000",
+      "caption": "오래된 게시물\n\nimportAfter 이전이라 가져오지 않아야 함.",
+      "media_type": "IMAGE",
+      "media_url": "{{BASE}}/i/old.jpg",
+      "permalink": "https://www.instagram.com/p/TEST0/",
+      "timestamp": "2026-09-01T09:00:00+0000",
+      "username": "cava.life"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+<section class="journal">
+  <h1 class="journal__title">{{ chunk.title }}</h1>
+  {%- if chunk.posts.length == 0 %}
+  <p class="empty">No articles yet.</p>
+  {%- else %}
+  <ul class="grid">
+    {%- for post in chunk.posts %}
+      {% include "partials/card.njk" %}
+    {%- endfor %}
+  </ul>
+  {%- endif %}
+
+  {%- if chunk.total > 1 %}
+  {%- set cur = chunk.page %}
+  {%- set base = "/blogs/" + chunk.key + "/" %}
+  <nav class="pagination" aria-label="Pagination">
+    {%- if cur > 1 %}<a class="pagination__step" href="{{ base if cur == 2 else base + 'page/' + (cur - 1) + '/' }}">Previous</a>{% endif %}
+    <ol>
+      {%- for n in range(1, chunk.total + 1) %}
+        {%- if n == 1 or n == chunk.total or (n >= cur - 2 and n <= cur + 2) %}
+        <li>{% if n == cur %}<span aria-current="page">{{ n }}</span>{% else %}<a href="{{ base if n == 1 else base + 'page/' + n + '/' }}">{{ n }}</a>{% endif %}</li>
+        {%- elif n == cur - 3 or n == cur + 3 %}
+        <li class="pagination__gap" aria-hidden="true">…</li>
+        {%- endif %}
+      {%- endfor %}
+    </ol>
+    {%- if cur < chunk.total %}<a class="pagination__step" href="{{ base }}page/{{ cur + 1 }}/">Next</a>{% endif %}
+  </nav>
+  {%- endif %}
+</section>
+<script>
+  // Old Shopify links used ?page=N — send them to the matching static page.
+  (function () {
+    var m = location.search.match(/[?&]page=(\d+)/);
+    if (m && +m[1] > 1) location.replace("{{ basePath }}/blogs/{{ chunk.key }}/page/" + m[1] + "/");
+  })();
+</script>
