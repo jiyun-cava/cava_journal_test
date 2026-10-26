@@ -65,6 +65,9 @@ const mockFile = path.join(tmp, "mock.json");
 fs.writeFileSync(mockFile, JSON.stringify(mock));
 
 // async: the mock image server lives in this process, so it must not be blocked
+// a migrated Shopify article whose title matches an Instagram post
+fs.writeFileSync(path.join(tmp, "src/posts/cavajournal/이미-있는-글.md"), '---\ntitle: "이미 있는 글"\ndate: "2026-10-01T00:00:00+09:00"\nsource: "shopify"\n---\n<div class="rte"><p>x</p></div>\n');
+
 const run = async (...a) =>
   (await execFileAsync("node", ["scripts/sync-instagram.mjs", "--mock", mockFile, ...a], { cwd: tmp, encoding: "utf8" })).stdout;
 
@@ -77,6 +80,8 @@ await t("sync creates articles, routes by hashtag, skips old & #notjournal", asy
   assert.ok(now.includes("이번-주-작업실-풍경.md"), "#nowjournal post routed to NOW");
   assert.ok(!more.concat(now).some((f) => f.includes("비공개")), "#notjournal skipped");
   assert.ok(!more.concat(now).some((f) => f.includes("오래된")), "post before importAfter skipped");
+  assert.ok(!more.includes("이미-있는-글-2.md"), "post already migrated from Shopify skipped");
+  assert.match(out, /already on the site/);
   const md = fs.readFileSync(path.join(tmp, "src/posts/cavajournal/홍길동-어느-오후의-산책.md"), "utf8");
   assert.match(md, /instagram_id: "1800000000000001"/);
   assert.match(md, /class="mention" href="https:\/\/www.instagram.com\/someone\/"/);

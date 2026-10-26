@@ -168,7 +168,11 @@ function galleryHtml(media, permalink) {
 /* ---------------- main ---------------- */
 async function main() {
   const cutoff = ALL || !ig.importAfter ? null : new Date(ig.importAfter);
-  const known = new Set(listPosts().map((p) => String(p.data.instagram_id || "")).filter(Boolean));
+  const existing = listPosts();
+  const known = new Set(existing.map((p) => String(p.data.instagram_id || "")).filter(Boolean));
+  // Articles already on the site from Shopify: an Instagram post with the same
+  // title is the same article, so it isn't imported twice.
+  const migrated = new Set(existing.filter((p) => p.data.source !== "instagram").map((p) => p.handle));
   const media = await fetchMedia(cutoff);
 
   const fresh = media
@@ -188,6 +192,8 @@ async function main() {
     const { title, body, hashtags } = parseCaption(m.caption || "");
     if (hashtags.some((t) => skip.has(t))) { console.log(`  – skip ${m.id} (skip hashtag)`); continue; }
     if (requiredTag && !hashtags.includes(requiredTag)) { console.log(`  – skip ${m.id} (missing ${ig.requireHashtag})`); continue; }
+
+    if (migrated.has(handleize(title))) { console.log(`  – skip ${m.id} (already on the site: ${title})`); continue; }
 
     const journal = pickJournal(hashtags);
     const handle = uniqueHandle(journal, handleize(title) || `instagram-${m.id}`);

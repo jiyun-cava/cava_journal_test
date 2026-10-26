@@ -29,9 +29,21 @@
       "username": "cava.life",
       "children": {
         "data": [
-          { "id": "c1", "media_type": "IMAGE", "media_url": "{{BASE}}/i/a.jpg" },
-          { "id": "c2", "media_type": "IMAGE", "media_url": "{{BASE}}/i/b.jpg" },
-          { "id": "c3", "media_type": "IMAGE", "media_url": "{{BASE}}/i/c.jpg" }
+          {
+            "id": "c1",
+            "media_type": "IMAGE",
+            "media_url": "{{BASE}}/i/a.jpg"
+          },
+          {
+            "id": "c2",
+            "media_type": "IMAGE",
+            "media_url": "{{BASE}}/i/b.jpg"
+          },
+          {
+            "id": "c3",
+            "media_type": "IMAGE",
+            "media_url": "{{BASE}}/i/c.jpg"
+          }
         ]
       }
     },
@@ -41,7 +53,16 @@
       "media_type": "IMAGE",
       "media_url": "{{BASE}}/i/old.jpg",
       "permalink": "https://www.instagram.com/p/TEST0/",
-      "timestamp": "2026-09-01T09:00:00+0000",
+      "timestamp": "2026-06-01T09:00:00+0000",
+      "username": "cava.life"
+    },
+    {
+      "id": "1800000000000005",
+      "caption": "이미 있는 글\n\n샵에서 옮겨온 글과 같은 제목.",
+      "media_type": "IMAGE",
+      "media_url": "{{BASE}}/i/dup.jpg",
+      "permalink": "https://www.instagram.com/p/TEST5/",
+      "timestamp": "2026-10-25T09:00:00+0000",
       "username": "cava.life"
     }
   ]
