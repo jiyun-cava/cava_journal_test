@@ -370,8 +370,10 @@ export function mergeText(lines, txt) {
 
 async function readSlide(file, lang, dir) {
   const base = path.join(dir, lang.replace("+", "_"));
+  // One thread per reading: two readings run side by side, and Tesseract's own
+  // threads fighting over the same cores slow it down many times over.
   await run("tesseract", [file, base, "-l", lang, "--psm", "4", "-c", "tessedit_create_tsv=1", "-c", "tessedit_create_txt=1"],
-    { maxBuffer: 20 * 1024 * 1024 });
+    { maxBuffer: 20 * 1024 * 1024, timeout: 120000, env: { ...process.env, OMP_THREAD_LIMIT: "1" } });
   return {
     tsv: fs.readFileSync(`${base}.tsv`, "utf8"),
     txt: fs.existsSync(`${base}.txt`) ? fs.readFileSync(`${base}.txt`, "utf8") : "",

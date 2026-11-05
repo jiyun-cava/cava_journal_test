@@ -360,9 +360,19 @@ async function main() {
         for (const [i, s] of saved.entries()) {
           let analysis = null;
           if (s.type === "image") {
-            analysis = reader === "mock" ? MOCK_VISION[items[i]?.id] || null
-              : reader === "claude" ? await analyzeSlide(siteFile(s.src), { model: visionModel })
-              : await analyzeSlideOcr(siteFile(s.src));
+            const t0 = Date.now();
+            try {
+              analysis = reader === "mock" ? MOCK_VISION[items[i]?.id] || null
+                : reader === "claude" ? await analyzeSlide(siteFile(s.src), { model: visionModel })
+                : await analyzeSlideOcr(siteFile(s.src));
+            } catch (e) {
+              if (reader === "claude") throw e;
+              // One unreadable slide: keep it as an image and say so.
+              console.warn(`      slide ${i + 1}: could not be read (${e.message.slice(0, 80)})`);
+              warnings.push(`Slide ${i + 1} could not be read and was kept as an image. If it has text, type it in.`);
+              analysis = null;
+            }
+            if (Date.now() - t0 > 30000) console.log(`      slide ${i + 1}: slow (${Math.round((Date.now() - t0) / 1000)}s)`);
             console.log(`      slide ${i + 1}: ${analysis?.kind || "image"}${analysis?.kind === "text" ? ` (${analysis.paragraphs.length} paragraphs)` : ""}`);
           }
           if (analysis?.uncertain) warnings.push(`Slide ${i + 1}: some words may be misread. Check this slide's text closely.`);
