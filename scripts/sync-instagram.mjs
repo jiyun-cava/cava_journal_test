@@ -19,11 +19,13 @@
  * Exit code 0 always on "nothing new"; writes `changed=true|false` to $GITHUB_OUTPUT.
  */
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import {
-  MEDIA_DIR, loadConfig, writePost, listPosts, uniqueHandle, handleize, escapeHtml,
+  ROOT, MEDIA_DIR, loadConfig, writePost, listPosts, uniqueHandle, handleize, escapeHtml,
   saveImage, download, toSiteUrl, excerpt,
 } from "./lib/util.mjs";
+import { visionEnabled, analyzeSlide, normalise, slidesToBlocks } from "./lib/vision.mjs";
 
 const cfg = loadConfig();
 const ig = cfg.instagram;
@@ -32,6 +34,9 @@ const DRY = args.includes("--dry-run");
 const ALL = args.includes("--all");
 const mockIdx = args.indexOf("--mock");
 const MOCK = mockIdx >= 0 ? args[mockIdx + 1] : null;
+// Testing: a JSON map of carousel child id → slide analysis, used instead of calling Claude.
+const mvIdx = args.indexOf("--mock-vision");
+const MOCK_VISION = mvIdx >= 0 ? JSON.parse(fs.readFileSync(args[mvIdx + 1], "utf8")) : null;
 const TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN;
 const API = `https://graph.instagram.com/${ig.apiVersion || "v26.0"}`;
 
@@ -41,9 +46,10 @@ const FIELDS = [
   "children{id,media_type,media_url,thumbnail_url}",
 ].join(",");
 
-function setOutput(changed, count) {
+function setOutput(changed, count, titles = []) {
   if (process.env.GITHUB_OUTPUT) {
-    fs.appendFileSync(process.env.GITHUB_OUTPUT, `changed=${changed}\ncount=${count}\n`);
+    const t = titles.join(" / ").replace(/[\r\n]/g, " ").slice(0, 200);
+    fs.appendFileSync(process.env.GITHUB_OUTPUT, `changed=${changed}\ncount=${count}\ntitles=${t}\n`);
   }
 }
 
@@ -165,11 +171,61 @@ function galleryHtml(media, permalink) {
   return `<div class="ig-gallery">\n${figs.join("\n")}\n</div>`;
 }
 
+/* ---------------- slides → article body ---------------- */
+const siteFile = (src) => path.join(ROOT, "src", src.replace(/^\//, ""));
+
+function mediaHtml(m, permalink) {
+  return galleryHtml([m], permalink).replace(/^<div class="ig-gallery">\n|\n<\/div>$/g, "");
+}
+
+function blocksHtml(blocks, permalink) {
+  return blocks.map((b) => {
+    if (b.type === "media") return `<div class="ig-gallery">${mediaHtml(b.media, permalink)}</div>`;
+    if (b.type === "placeholder") return `<!-- EDITOR: 본문을 여기에 붙여 넣으세요. Paste the article text here. -->\n<p class="needs-text">본문 준비 중</p>`;
+    const paras = b.paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`);
+    const notes = b.notes.map((n) => `<p class="slide-note">${escapeHtml(n)}</p>`);
+    return `<div class="slide-text">\n${[...paras, ...notes].join("\n")}\n</div>`;
+  }).join("\n");
+}
+
+/** Markdown preview of one new article, for the pull request an editor reviews. */
+function reviewMarkdown({ title, journal, file, permalink, mode, blocks, rawBase, warnings }) {
+  const img = (src) => `<img src="${rawBase ? rawBase + "/src" + src : src}" width="240">`;
+  const lines = [
+    `### ${title}`,
+    `${journal} · [Instagram](${permalink}) · \`${path.relative(ROOT, file)}\``,
+    "",
+    mode === "vision"
+      ? "Text slides were transcribed automatically. **Check every word against the post** before merging."
+      : "**Text needed.** Only the first image was imported. Open the file, replace `본문 준비 중` with the article text, then merge.",
+    ...warnings.map((w) => `> ⚠️ ${w}`),
+    "",
+  ];
+  for (const b of blocks) {
+    if (b.type === "media") lines.push(b.media.type === "image" ? img(b.media.src) : `▶ video${b.media.poster ? " " + img(b.media.poster) : ""}`, "");
+    else if (b.type === "placeholder") lines.push("_(본문 준비 중)_", "");
+    else lines.push(...b.paragraphs.map((p) => `> ${p}\n>`), ...b.notes.map((n) => `> _${n}_`), "");
+  }
+  return lines.join("\n");
+}
+
+/* ---------------- state: posts already handled ---------------- */
+const STATE_FILE = path.join(ROOT, "instagram-state.json");
+function readState() {
+  try { return JSON.parse(fs.readFileSync(STATE_FILE, "utf8")); } catch { return { seen: [] }; }
+}
+function writeState(state) {
+  state.seen = [...new Set(state.seen.map(String))].sort();
+  fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2) + "\n");
+}
+
 /* ---------------- main ---------------- */
 async function main() {
   const cutoff = ALL || !ig.importAfter ? null : new Date(ig.importAfter);
   const existing = listPosts();
-  const known = new Set(existing.map((p) => String(p.data.instagram_id || "")).filter(Boolean));
+  const state = readState();
+  // Already on the site, or already sent for review (merged, pending or rejected).
+  const known = new Set([...existing.map((p) => String(p.data.instagram_id || "")), ...state.seen.map(String)].filter(Boolean));
   // Articles already on the site from Shopify: an Instagram post with the same
   // title is the same article, so it isn't imported twice.
   const migrated = new Set(existing.filter((p) => p.data.source !== "instagram").map((p) => p.handle));
@@ -187,45 +243,123 @@ async function main() {
   if (requiredTag) routing.add(requiredTag);
   const maxBytes = (ig.maxVideoMB || 60) * 1024 * 1024;
 
+  const useVision = ig.splitSlides !== false && (visionEnabled() || MOCK_VISION);
+  const visionModel = ig.visionModel || "claude-sonnet-5-5";
+  const rawBase = process.env.REVIEW_RAW_BASE || "";
+  const reports = [];
+  const titles = [];
+
   let created = 0;
   for (const m of fresh) {
-    const { title, body, hashtags } = parseCaption(m.caption || "");
-    if (hashtags.some((t) => skip.has(t))) { console.log(`  – skip ${m.id} (skip hashtag)`); continue; }
+    const parsed = parseCaption(m.caption || "");
+    const { body, hashtags } = parsed;
+    let title = parsed.title;
+    if (hashtags.some((t) => skip.has(t))) { console.log(`  – skip ${m.id} (skip hashtag)`); state.seen.push(m.id); continue; }
     if (requiredTag && !hashtags.includes(requiredTag)) { console.log(`  – skip ${m.id} (missing ${ig.requireHashtag})`); continue; }
 
-    if (migrated.has(handleize(title))) { console.log(`  – skip ${m.id} (already on the site: ${title})`); continue; }
+    if (migrated.has(handleize(title))) { console.log(`  – skip ${m.id} (already on the site: ${title})`); state.seen.push(m.id); continue; }
 
     const journal = pickJournal(hashtags);
-    const handle = uniqueHandle(journal, handleize(title) || `instagram-${m.id}`);
     console.log(`  + [${journal}] ${title}  (${m.media_type}, ${m.timestamp})`);
     if (DRY) { created++; continue; }
 
+    // Media is saved under a temporary folder first: the final handle may come from the title slide.
+    const tmpHandle = `_incoming-${m.id}`;
     const items = m.media_type === "CAROUSEL_ALBUM" ? (m.children?.data || []) : [m];
-    const saved = await saveMedia(items, path.join(MEDIA_DIR, journal, handle), maxBytes);
-    const cover = saved.find((s) => s.type === "image")?.src || saved.find((s) => s.poster)?.poster;
-    const removeTags = ig.removeRoutingHashtags ? routing : new Set();
-    const text = captionHtml(body, removeTags);
+    const saved = await saveMedia(items, path.join(MEDIA_DIR, journal, tmpHandle), maxBytes);
+    const warnings = [];
 
-    writePost({
+    // 1) Read each image slide; 2) fall back to "first image + text needed".
+    let mode = "manual";
+    let blocks = [];
+    let author, issue;
+    if (useVision && saved.length) {
+      try {
+        const slides = [];
+        for (const [i, s] of saved.entries()) {
+          let analysis = null;
+          if (s.type === "image") {
+            analysis = MOCK_VISION ? MOCK_VISION[items[i]?.id] || null : await analyzeSlide(siteFile(s.src), { model: visionModel });
+            console.log(`      slide ${i + 1}: ${analysis?.kind || "image"}${analysis?.kind === "text" ? ` (${analysis.paragraphs.length} paragraphs)` : ""}`);
+          }
+          slides.push({ media: s, analysis: analysis && normalise(analysis) });
+        }
+        const titleSlide = slides.find((s) => s.analysis?.kind === "title")?.analysis;
+        if (titleSlide?.title) {
+          author = titleSlide.author || undefined;
+          title = author ? `${author} — ${titleSlide.title}` : titleSlide.title;
+        }
+        issue = slides.map((s) => s.analysis?.issue).find((n) => Number.isFinite(n)) ?? undefined;
+        blocks = slidesToBlocks(slides);
+        mode = "vision";
+        if (!blocks.some((b) => b.type === "text")) warnings.push("No text slides were found. If this post has text slides, add the text by hand.");
+      } catch (e) {
+        console.warn(`    ! slide reading failed, falling back to a draft: ${e.message}`);
+        warnings.push(`Automatic transcription failed (${e.message.slice(0, 120)}).`);
+        blocks = [];
+        mode = "manual";
+      }
+    }
+    if (mode === "manual") {
+      const first = saved.find((s) => s.type === "image") || saved[0];
+      blocks = [...(first ? [{ type: "media", media: first }] : []), { type: "placeholder" }];
+      if (!useVision) warnings.push("Automatic transcription is off (no ANTHROPIC_API_KEY secret).");
+    }
+
+    if (migrated.has(handleize(title))) {
+      console.log(`  – skip ${m.id} (already on the site: ${title})`);
+      fs.rmSync(path.join(MEDIA_DIR, journal, tmpHandle), { recursive: true, force: true });
+      state.seen.push(m.id);
+      continue;
+    }
+
+    // Move media to its final folder and point every src at it.
+    const handle = uniqueHandle(journal, handleize(title) || `instagram-${m.id}`);
+    const from = path.join(MEDIA_DIR, journal, tmpHandle);
+    const to = path.join(MEDIA_DIR, journal, handle);
+    fs.rmSync(to, { recursive: true, force: true });
+    if (fs.existsSync(from)) fs.renameSync(from, to);
+    const fix = (src) => src && src.replace(`/${tmpHandle}/`, `/${handle}/`);
+    for (const s of saved) { s.src = fix(s.src); s.poster = fix(s.poster); }
+    // Drop the image files of text slides: on the site they are live text.
+    const used = new Set(blocks.filter((b) => b.type === "media").flatMap((b) => [b.media.src, b.media.poster]).filter(Boolean));
+    for (const s of saved) for (const src of [s.src, s.poster]) if (src && !used.has(src)) fs.rmSync(siteFile(src), { force: true });
+
+    const removeTags = ig.removeRoutingHashtags ? routing : new Set();
+    const captionText = ig.includeCaption === false ? "" : captionHtml(body, removeTags);
+    const cover = blocks.find((b) => b.type === "media" && b.media.type === "image")?.media.src
+      || blocks.find((b) => b.type === "media")?.media.poster;
+    const firstText = blocks.find((b) => b.type === "text")?.paragraphs.join(" ");
+
+    const file = writePost({
       journal,
       handle,
       data: {
         title,
         date: m.timestamp,
+        author,
+        issue,
         cover,
-        excerpt: excerpt(text || title, 140),
+        excerpt: excerpt(firstText || captionText || title, 140),
         tags: hashtags.filter((t) => !removeTags.has(t)).map((t) => t.slice(1)),
         source: "instagram",
         instagram_id: String(m.id),
         instagram_permalink: m.permalink,
+        needs_text: mode === "manual" ? true : undefined,
       },
-      html: `${galleryHtml(saved, m.permalink)}\n<div class="ig-caption">\n${text}\n</div>`,
+      html: `${blocksHtml(blocks, m.permalink)}${captionText ? `\n<div class="ig-caption">\n${captionText}\n</div>` : ""}`,
     });
+    state.seen.push(m.id);
+    titles.push(title);
+    reports.push(reviewMarkdown({ title, journal, file, permalink: m.permalink, mode, blocks, rawBase, warnings }));
     created++;
   }
 
+  if (!DRY) writeState(state);
+  const reportFile = process.env.SYNC_REPORT || path.join(os.tmpdir(), "instagram-sync-report.md");
+  if (reports.length) fs.writeFileSync(reportFile, reports.join("\n\n---\n\n"));
   console.log(created ? `${DRY ? "Would create" : "Created"} ${created} article(s).` : "No new Instagram posts.");
-  setOutput(!DRY && created > 0, created);
+  setOutput(!DRY && created > 0, created, titles);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

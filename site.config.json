@@ -46,6 +46,10 @@
     "requireHashtag": null,
     "skipHashtags": ["#notjournal"],
     "removeRoutingHashtags": true,
-    "maxVideoMB": 60
+    "maxVideoMB": 60,
+    "review": "pull-request",
+    "splitSlides": true,
+    "visionModel": "claude-sonnet-5-5",
+    "includeCaption": true
   }
 }

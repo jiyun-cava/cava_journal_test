@@ -95,14 +95,29 @@ If it ever lapses, generate a new token (step 4.3) and replace the secret.
 
 ### How a post becomes an article
 
+Every new post goes through these steps:
+
+1. **Read each slide (needs the `ANTHROPIC_API_KEY` secret).** Claude looks at every carousel image in order and sorts it:
+   - **Photo or artwork slide:** kept as an image.
+   - **Title slide** (title + handwritten signature): kept as an image. The article title becomes `작가 — 제목`.
+   - **Text slide:** transcribed into live text. The slide image is not kept. A sentence cut off at the end of one slide is joined with the next. Source lines like `← 출처: …` become small notes.
+   - **Issue number** next to the CAVA *journal* wordmark is saved as `issue`.
+2. **Fallback when there's no API key, or reading fails:** only the first image is imported, plus a "본문 준비 중" placeholder for an editor to replace with the text.
+3. **Review.** With `"review": "pull-request"` (the default), each batch of new posts opens a pull request. Its description shows the full article: images, then the transcribed text in order. An editor checks it against the post and fixes text in **Files changed → ⋯ → Edit file**. **Merge** publishes; **Close** discards.
+
+The caption is kept under the article. Its first line is the title when there's no title slide.
+
 ```
-홍길동 — 어느 오후의 산책          ← first line = title (and URL handle)
-
-첫 단락…                            ← the rest = body; blank line = new paragraph
-@mentions and links become links
-
+홍길동 — 어느 오후의 산책          ← caption first line = title if there is no title slide
+첫 단락…                            ← kept under the article
 #nowjournal                         ← chooses the journal
 ```
+
+#### Turning on slide reading
+
+1. Create an API key at [console.anthropic.com](https://console.anthropic.com) → **API keys**, and add a little credit under **Billing**. Each post costs one small image request per slide.
+2. Add it as a repository secret named `ANTHROPIC_API_KEY`.
+3. In **Settings → Actions → General → Workflow permissions**, tick **Allow GitHub Actions to create and approve pull requests**. Without it, the review pull request can't be opened.
 
 Settings in `site.config.json → instagram`:
 
@@ -115,11 +130,16 @@ Settings in `site.config.json → instagram`:
 | `skipHashtags` | Posts with these tags are never imported (`#notjournal`) |
 | `removeRoutingHashtags` | Hide the routing tags from the article text |
 | `maxVideoMB` | Larger videos show the poster frame linking to Instagram instead |
+| `review` | `"pull-request"`: new posts wait for an editor to merge. `"publish"`: they go live straight away |
+| `splitSlides` | `false` turns slide reading off (every post arrives as "first image + text needed") |
+| `visionModel` | Claude model used to read slides |
+| `includeCaption` | `false` leaves the Instagram caption off the article |
 
-Carousels become a gallery, Reels/videos are stored and played on the page.
-Each article links back to the Instagram post. Edits made later on Instagram
-are not re-synced — edit the `.md` file instead (or delete it and it will be
-re-imported on the next run).
+Reels/videos are stored and played on the page. Each article links back to
+the Instagram post. Edits made later on Instagram are not re-synced; edit the
+`.md` file instead. Posts already sent for review are listed in
+`instagram-state.json`, so a closed (discarded) pull request is not re-created.
+To bring one back, remove its id from that file.
 
 To review before publishing, add `draft: true` to a post: drafts appear in
 `npm start` but not on the live site.

@@ -17,7 +17,8 @@ on:
         default: false
 
 permissions:
-  contents: write   # commit new posts
+  contents: write        # commit new posts
+  pull-requests: write   # open review pull requests
   pages: write
   id-token: write
 
@@ -40,11 +41,21 @@ jobs:
 
       - run: npm ci
 
+      - name: Review mode
+        id: mode
+        run: echo "review=$(node -p "require('./site.config.json').instagram.review || 'publish'")" >> "$GITHUB_OUTPUT"
+
       - name: Pull new Instagram posts
         id: sync
         if: github.event_name != 'push'
         env:
           INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          # Optional: turns text slides into live text. Without it, posts arrive as
+          # "first image + text needed" drafts.
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SYNC_REPORT: ${{ runner.temp }}/report.md
+          REVIEW_BRANCH: instagram/${{ github.run_id }}
+          REVIEW_RAW_BASE: https://raw.githubusercontent.com/${{ github.repository }}/instagram/${{ github.run_id }}
         run: |
           if [ -z "$INSTAGRAM_ACCESS_TOKEN" ]; then
             echo "::warning::INSTAGRAM_ACCESS_TOKEN secret is not set — skipping Instagram sync."
@@ -53,19 +64,57 @@ jobs:
           fi
           node scripts/sync-instagram.mjs ${{ inputs.backfill && '--all' || '' }}
 
-      - name: Commit new articles
-        if: steps.sync.outputs.changed == 'true'
+      # review = "pull-request": each batch of new posts becomes a pull request.
+      # An editor checks the text, fixes it if needed, and merges to publish.
+      - name: Open a pull request for review
+        if: steps.sync.outputs.changed == 'true' && steps.mode.outputs.review == 'pull-request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: instagram/${{ github.run_id }}
         run: |
           git config user.name  "cava-bot"
           git config user.email "cava-bot@users.noreply.github.com"
+          git checkout -b "$BRANCH"
           git add src/posts src/media
+          git commit -m "Instagram: ${{ steps.sync.outputs.titles }}"
+          git push origin "$BRANCH"
+          {
+            echo "New Instagram post(s) are ready for review."
+            echo
+            echo "**To publish:** check the text below against the Instagram post. To fix something, open **Files changed**, click **⋯ → Edit file** on the article, save, then press **Merge pull request**. The site updates about a minute later."
+            echo "**To discard:** close this pull request."
+            echo
+            echo "---"
+            echo
+            cat "${{ runner.temp }}/report.md"
+          } | head -c 60000 > "${{ runner.temp }}/body.md"
+          gh pr create --base main --head "$BRANCH" \
+            --title "Instagram: ${{ steps.sync.outputs.titles }}" \
+            --body-file "${{ runner.temp }}/body.md"
+          # Remember these posts on main so they aren't picked up again.
+          git checkout main
+          git add instagram-state.json
+          git commit -m "Instagram: mark posts as sent for review [skip ci]"
+          git push origin main
+
+      # review = "publish": publish straight away, no review.
+      - name: Commit new articles
+        if: steps.sync.outputs.changed == 'true' && steps.mode.outputs.review != 'pull-request'
+        run: |
+          git config user.name  "cava-bot"
+          git config user.email "cava-bot@users.noreply.github.com"
+          git add src/posts src/media instagram-state.json
           git commit -m "Instagram: add ${{ steps.sync.outputs.count }} article(s)"
           git push
 
       - name: Decide whether to deploy
         id: decide
         run: |
-          if [ "${{ github.event_name }}" != "schedule" ] || [ "${{ steps.sync.outputs.changed }}" = "true" ]; then
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          elif [ "${{ steps.sync.outputs.changed }}" = "true" ] && [ "${{ steps.mode.outputs.review }}" != "pull-request" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "deploy=true" >> "$GITHUB_OUTPUT"
           else
             echo "deploy=false" >> "$GITHUB_OUTPUT"
