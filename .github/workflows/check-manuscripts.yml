@@ -1,0 +1,23 @@
+# Checks that the sync can read manuscripts from Google Drive.
+name: Check manuscripts (Google Drive)
+on:
+  workflow_dispatch:
+    inputs:
+      title:
+        description: "Optional: a manuscript title to read as a test"
+        required: false
+        default: ""
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          TITLE: ${{ inputs.title }}
+        run: node scripts/check-manuscripts.mjs "$TITLE"

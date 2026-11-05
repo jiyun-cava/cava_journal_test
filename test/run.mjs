@@ -292,9 +292,17 @@ await t("text slide with a picture: text is live, the picture is cut out with it
   assert.deepEqual([meta.width, meta.height], [400, 500]);
 });
 
-await t("manuscript: its text, the carousel's pictures in place, captions from the manuscript", async () => {
-  const dir = path.join(ROOT, "test/fixtures/manuscripts");
-  const layouts = path.join(dir, "layout-imsi.json");
+for (const [label, folder] of [["text", "manuscripts"], ["Google Doc HTML", "manuscripts-gdoc"]])
+await t(`manuscript (${label}): its text, the carousel's pictures in place, captions from the manuscript`, async () => {
+  for (const d of ["src/posts/cavajournal", "src/media/cavajournal"]) {
+    for (const f of fs.readdirSync(path.join(tmp, d))) if (f.startsWith("지혜진")) fs.rmSync(path.join(tmp, d, f), { recursive: true, force: true });
+  }
+  const st = path.join(tmp, "instagram-state.json");
+  const state = JSON.parse(fs.readFileSync(st, "utf8"));
+  state.seen = state.seen.filter((x) => x !== "1800000000000009");
+  fs.writeFileSync(st, JSON.stringify(state));
+  const dir = path.join(ROOT, "test/fixtures", folder);
+  const layouts = path.join(ROOT, "test/fixtures/manuscripts/layout-imsi.json");
   const ids = Object.keys(JSON.parse(fs.readFileSync(layouts, "utf8")));
   const pmock = path.join(tmp, "mock-imsi.json");
   fs.writeFileSync(pmock, JSON.stringify({ data: [{

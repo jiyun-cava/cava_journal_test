@@ -27,7 +27,8 @@ import {
 } from "./lib/util.mjs";
 import { visionEnabled, analyzeSlide, normalise, slidesToBlocks } from "./lib/vision.mjs";
 import { ocrAvailable, analyzeSlideOcr, slideLayout } from "./lib/ocr.mjs";
-import { loadManuscripts, findManuscript, assemble } from "./lib/manuscript.mjs";
+import { loadManuscripts, findManuscript, assemble, titleScore, looksLikeName, googleDocHtmlToManuscript, parseManuscript } from "./lib/manuscript.mjs";
+import { driveEnabled, listDocs, exportHtml, folderName, serviceAccountEmail } from "./lib/gdrive.mjs";
 import sharp from "sharp";
 
 const cfg = loadConfig();
@@ -335,6 +336,31 @@ async function main() {
   const media = await fetchMedia(ONLY ? null : cutoff);
   const manuscripts = loadManuscripts(MANUSCRIPT_DIR || path.join(ROOT, "manuscripts"));
   if (manuscripts.length) console.log(`${manuscripts.length} manuscript(s) on file.`);
+  // Manuscripts in Google Drive (when a service account is set up).
+  let driveDocs = [];
+  if (driveEnabled()) {
+    try {
+      const since = cutoff && !ONLY ? new Date(cutoff.getTime() - 365 * 86400000) : null;
+      driveDocs = await listDocs({ modifiedAfter: since });
+      console.log(`Google Drive: ${driveDocs.length} document(s) visible to ${serviceAccountEmail()}.`);
+    } catch (e) {
+      console.warn(`::warning::Google Drive manuscripts unavailable: ${e.message}`);
+    }
+  }
+  /** The post's manuscript: in the manuscripts folder, or a Google Doc with the post's title. */
+  const manuscriptFor = async (texts) => {
+    const local = findManuscript(manuscripts, texts);
+    if (local) return local;
+    const doc = driveDocs.map((d) => ({ d, s: titleScore(d.name, texts) })).filter((x) => x.s >= 0.85).sort((a, b) => b.s - a.s)[0]?.d;
+    if (!doc) return null;
+    const { text, comments } = googleDocHtmlToManuscript(await exportHtml(doc.id));
+    const ms = parseManuscript(text, comments);
+    if (!ms.title) ms.title = doc.name;
+    const folder = await folderName(doc.parents?.[0]);
+    if (looksLikeName(folder)) ms.author = folder;
+    ms.file = `Google Doc "${doc.name}"${folder ? ` in ${folder}` : ""} (${doc.webViewLink || doc.id})`;
+    return ms;
+  };
 
   const fresh = media
     .filter((m) => ONLY ? matchesOnly(m) : !known.has(String(m.id)))
@@ -391,7 +417,13 @@ async function main() {
     let mode = "manual";
     let blocks = [];
     let author, issue;
-    const manuscript = !FORCE_FALLBACK && saved.length ? findManuscript(manuscripts, [title, m.caption || ""]) : null;
+    let manuscript = null;
+    if (!FORCE_FALLBACK && saved.length) {
+      try { manuscript = await manuscriptFor([title, m.caption || ""]); } catch (e) {
+        console.warn(`    ! manuscript lookup failed: ${e.message}`);
+        warnings.push(`Couldn't read the manuscript from Google Drive (${e.message.slice(0, 120)}).`);
+      }
+    }
     if (manuscript && !ocrAvailable() && !MOCK_LAYOUT) warnings.push("A manuscript was found, but the slide reader isn't installed, so pictures couldn't be placed.");
     if (manuscript && (ocrAvailable() || MOCK_LAYOUT)) {
       try {

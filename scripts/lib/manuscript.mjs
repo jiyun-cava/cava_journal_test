@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { parse as parseHtml } from "node-html-parser";
 
 // Build an article from the approved manuscript, using the Instagram carousel
 // only for its pictures and their order.
@@ -102,6 +103,7 @@ const inside = (l, b) => {
  */
 export function assemble(manuscript, slides) {
   const warnings = [];
+  const knownAuthor = manuscript.author || "";
   const lineOk = (l) => l.conf >= 40 && norm(l.text).length >= 2;
 
   // 1) Which version of the manuscript is the post? The one most of the slide text is found in.
@@ -265,6 +267,7 @@ export function assemble(manuscript, slides) {
   }
   for (const b of pictures) if (b.captionFromSlide) warnings.push(`A caption was read from the slide, not the manuscript ("${b.caption.slice(0, 50)}…"). Check its spelling.`);
 
+  if (knownAuthor) author = knownAuthor; // the manuscript's folder name beats reading it off a slide
   if (manuscript.bio) out.push({ type: "bio", name: author, text: manuscript.bio });
   if (!author) warnings.push("The author's name wasn't found on the slides. Add it to the title and the bio.");
   const title = author ? `${author} — ${manuscript.title}` : manuscript.title;
@@ -281,17 +284,32 @@ export function loadManuscripts(dir) {
   if (!dir || !fs.existsSync(dir)) return [];
   const out = [];
   for (const f of fs.readdirSync(dir).sort()) {
-    if (!/\.(md|txt)$/i.test(f) || /^readme/i.test(f)) continue;
-    const base = path.join(dir, f.replace(/\.(md|txt)$/i, ""));
-    const comments = fs.existsSync(`${base}.comments.json`) ? JSON.parse(fs.readFileSync(`${base}.comments.json`, "utf8")) : [];
+    if (!/\.(md|txt|html?)$/i.test(f) || /^readme/i.test(f)) continue;
+    const base = path.join(dir, f.replace(/\.(md|txt|html?)$/i, ""));
     try {
-      const m = parseManuscript(fs.readFileSync(path.join(dir, f), "utf8"), comments);
+      let text = fs.readFileSync(path.join(dir, f), "utf8");
+      let comments = fs.existsSync(`${base}.comments.json`) ? JSON.parse(fs.readFileSync(`${base}.comments.json`, "utf8")) : [];
+      if (/\.html?$/i.test(f)) ({ text, comments } = googleDocHtmlToManuscript(text));
+      const m = parseManuscript(text, comments);
       out.push({ ...m, file: path.relative(process.cwd(), path.join(dir, f)) });
     } catch (e) {
       console.warn(`  ! manuscript ${f} couldn't be read: ${e.message}`);
     }
   }
   return out;
+}
+
+/** How well a manuscript title matches a post (0–1): the share of the title found in its title or caption. */
+export function titleScore(title, texts) {
+  const tg = grams(title || "");
+  if (tg.size < 3) return 0;
+  return Math.max(0, ...texts.map((t) => contained(tg, grams(t || ""))));
+}
+
+/** A folder name that is a person's name, not "10월", "2026" or "이미지". */
+export function looksLikeName(s) {
+  const t = (s || "").trim();
+  return t.length >= 2 && t.length <= 15 && !/(\d+월|^\d{4}$|이미지|사진|원고|자료|manuscript|draft|images?|photos?)/i.test(t);
 }
 
 /** The manuscript whose title is the post's title (or appears in its caption). */
@@ -306,4 +324,78 @@ export function findManuscript(manuscripts, texts) {
     }
   }
   return bestS >= 0.85 ? best : null;
+}
+
+/* ---------------- Google Docs (HTML export) ---------------- */
+
+const clean = (t) => t.replace(/\u00a0/g, " ").replace(/[ \t]+/g, " ").trim();
+
+/**
+ * A Google Doc exported as HTML → the text form parseManuscript reads, plus the
+ * comments. Keeps headings, bold title lines, numbered lists, and which comment
+ * is attached to which image (its caption).
+ */
+export function googleDocHtmlToManuscript(html) {
+  const root = parseHtml(html, { comment: false });
+  // Classes Google uses for bold text.
+  const css = root.querySelectorAll("style").map((x) => x.text).join("\n");
+  const bold = new Set();
+  for (const m of css.matchAll(/\.([\w-]+)\{[^}]*font-weight:\s*(700|bold)[^}]*\}/g)) bold.add(m[1]);
+  const isBold = (el) => (el.getAttribute?.("class") || "").split(/\s+/).some((c) => bold.has(c));
+
+  // Comments: <a id="cmnt1">[a]</a> text… at the end of the document.
+  const comments = [];
+  for (const a of root.querySelectorAll('a[id^="cmnt"]')) {
+    const id = a.getAttribute("id");
+    if (!/^cmnt\d+$/.test(id)) continue;
+    const box = a.closest("div") || a.parentNode;
+    const paras = box.tagName?.toLowerCase() === "div" ? box.querySelectorAll("p") : [a.parentNode];
+    const text = paras.map((p) => clean(p.text.replace(a.text, ""))).filter(Boolean).join("\n");
+    comments.push({ id, text });
+    box.remove();
+  }
+
+  const body = root.querySelector("body") || root;
+  const lines = [];
+  const walk = (el) => {
+    for (const node of el.childNodes) {
+      if (node.nodeType !== 1) continue;
+      const tag = node.tagName?.toLowerCase();
+      if (/^h[1-6]$/.test(tag)) { const t = clean(node.text.replace(/\[[a-z]{1,2}\]/g, "")); if (t) lines.push(`# ${t}`); continue; }
+      if (tag === "ol" || tag === "ul") {
+        const start = Number(node.getAttribute("start") || 1);
+        node.querySelectorAll("li").forEach((li, i) => {
+          const t = clean(li.text.replace(/\[[a-z]{1,2}\]/g, ""));
+          if (t) lines.push(tag === "ol" ? `${start + i}.  ${t}` : t);
+        });
+        continue;
+      }
+      if (tag === "table") { node.querySelectorAll("p").forEach((p) => paragraph(p)); continue; }
+      if (tag === "p") { paragraph(node); continue; }
+      if (tag === "div") { walk(node); continue; }
+    }
+  };
+  const paragraph = (p) => {
+    // Images, each followed by the comment(s) attached to it.
+    const imgs = p.querySelectorAll("img");
+    const refs = p.querySelectorAll('a[id^="cmnt_ref"]').map((a) => a.getAttribute("href").replace("#", ""));
+    if (imgs.length) {
+      const text = clean(p.text.replace(/\[[a-z]{1,2}\]/g, ""));
+      imgs.forEach((img, i) => {
+        // Pair images and comments in order; extra images get none.
+        const id = refs.length === imgs.length ? refs[i] : refs.length === 1 && i === imgs.length - 1 ? refs[0] : null;
+        lines.push(id ? `<comment_start id=${id}>\\[image\\]<comment_end id=${id}>` : "\\[image\\]");
+      });
+      if (text) lines.push(text);
+      return;
+    }
+    const spans = p.querySelectorAll("span").filter((sp) => clean(sp.text));
+    const text = clean(p.text.replace(/\[[a-z]{1,2}\]/g, ""));
+    if (!text) return;
+    const allBold = spans.length && spans.every((sp) => isBold(sp));
+    const isTitle = /\btitle\b/.test(p.getAttribute("class") || "");
+    lines.push(allBold || isTitle ? `**${text}**` : text);
+  };
+  walk(body);
+  return { text: lines.join("\n"), comments };
 }

@@ -148,6 +148,30 @@ The caption is kept under the article. Its first line is the title when there's 
 #nowjournal                         ← chooses the journal
 ```
 
+#### Manuscripts: the approved text, with the carousel's pictures
+
+When the approved manuscript of a post is available, the article is built from it instead of from what the slide reader reads:
+
+- **Text:** the manuscript's, word for word. If it has versions (`1안`, `2안`), the one the slides match is used. Numbered subheadings (`1. 공간을 찾는다.`) are kept; the `필진 소개` section becomes the author bio at the end.
+- **Pictures:** taken from the carousel in its order. Photos on a text slide or above a caption band are cut out; photo slides are kept whole. Each one goes between the manuscript paragraphs that surround it on the slides.
+- **Captions:** from the comments on the manuscript's images. A caption printed on a photo becomes that photo's alt text, so it isn't shown twice.
+- **Author:** the name of the folder the manuscript is in (`2026 / 10월 / 지혜진 / …`), otherwise the name read from the slides.
+
+The manuscript is matched to the post by its title: the Google Doc's name must be the post's title (the first line of its caption).
+
+**Where manuscripts come from**
+
+- **Google Drive (automatic).** Set up once:
+  1. [console.cloud.google.com](https://console.cloud.google.com) → create a project (e.g. `cava-journal`).
+  2. **APIs & Services → Library → Google Drive API → Enable.**
+  3. **IAM & Admin → Service accounts → Create service account** (name e.g. `journal-reader`, no roles) → open it → **Keys → Add key → Create new key → JSON**. A key file downloads.
+  4. GitHub → **Settings → Secrets and variables → Actions → New repository secret**: name `GOOGLE_SERVICE_ACCOUNT_JSON`, value: the whole key file.
+  5. In Google Drive, share the manuscripts folder (e.g. `2026`) with the service account's email (`…@….iam.gserviceaccount.com`, also in the key file as `client_email`) as **Commenter**. Commenter, not Viewer, so the comments (captions) are included.
+  6. **Actions → Check manuscripts (Google Drive) → Run workflow**, optionally with a title, to confirm it can read them.
+- **Files in the repo.** A `manuscripts/` folder may hold `.html` (Google Docs → File → Download → Web page), `.md` or `.txt` files; they're matched the same way.
+
+A post whose manuscript isn't found is imported the old way (slide reading, or first image + `본문 준비 중`). If the manuscript arrives later, close that pull request and use *Run workflow → post* with the post's link.
+
 #### Slide reading: free by default
 
 - Nothing to set up: the reader installs itself on every run.
