@@ -1,0 +1,52 @@
+# Connect Instagram through Facebook login (Graph API Explorer).
+# 1. Get a user token in the Graph API Explorer (README › Connect through Facebook).
+# 2. Actions → "Connect Instagram (Facebook login)" → Run workflow → paste it.
+# It is turned into a Facebook Page token that does not expire, and saved as
+# the INSTAGRAM_ACCESS_TOKEN secret. The token is never shown.
+name: Connect Instagram (Facebook login)
+
+on:
+  workflow_dispatch:
+    inputs:
+      user_token:
+        description: "Access token copied from the Graph API Explorer (valid ~1 hour)"
+        required: true
+      instagram_username:
+        description: "Instagram account to connect"
+        required: true
+        default: "cava.life"
+
+jobs:
+  connect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hide the token in logs
+        env:
+          T: ${{ inputs.user_token }}
+        run: echo "::add-mask::$T"
+
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Turn it into a Page token that doesn't expire
+        id: token
+        env:
+          FACEBOOK_APP_ID: ${{ secrets.FACEBOOK_APP_ID }}
+          FACEBOOK_APP_SECRET: ${{ secrets.FACEBOOK_APP_SECRET }}
+          T: ${{ inputs.user_token }}
+          U: ${{ inputs.instagram_username }}
+        run: node scripts/facebook-connect.mjs "$T" "$U"
+
+      - name: Save it as the INSTAGRAM_ACCESS_TOKEN secret
+        env:
+          GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
+          NEW_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::GH_SECRETS_TOKEN secret is missing, so the token could not be saved."
+            exit 1
+          fi
+          printf '%s' "$NEW_TOKEN" | gh secret set INSTAGRAM_ACCESS_TOKEN --repo "${{ github.repository }}"
+          echo "Saved. Connected to @${{ steps.token.outputs.username }}."

@@ -71,7 +71,17 @@ async function fetchMedia(cutoff) {
   if (MOCK) return JSON.parse(fs.readFileSync(MOCK, "utf8")).data;
   if (!TOKEN) throw new Error("INSTAGRAM_ACCESS_TOKEN is not set.");
   const out = [];
-  let url = `${API}/me/media?fields=${encodeURIComponent(FIELDS)}&limit=25&access_token=${TOKEN}`;
+  let url;
+  if (TOKEN.startsWith("EAA")) {
+    // Facebook-login token (a Facebook Page token): read the Page's linked Instagram account.
+    const FB = `https://graph.facebook.com/${ig.apiVersion || "v26.0"}`;
+    const me = await api(`${FB}/me?fields=instagram_business_account&access_token=${TOKEN}`);
+    const igId = me.instagram_business_account?.id;
+    if (!igId) throw new Error("This Facebook token isn't linked to an Instagram account. Reconnect with \"Connect Instagram (Facebook login)\".");
+    url = `${FB}/${igId}/media?fields=${encodeURIComponent(FIELDS)}&limit=25&access_token=${TOKEN}`;
+  } else {
+    url = `${API}/me/media?fields=${encodeURIComponent(FIELDS)}&limit=25&access_token=${TOKEN}`;
+  }
   for (let page = 0; url && page < 40; page++) {
     const json = await api(url);
     out.push(...(json.data || []));

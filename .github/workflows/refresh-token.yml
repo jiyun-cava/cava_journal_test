@@ -27,6 +27,7 @@ jobs:
         run: node scripts/refresh-instagram-token.mjs
 
       - name: Save new token as secret
+        if: steps.refresh.outputs.token != ''
         env:
           GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
           NEW_TOKEN: ${{ steps.refresh.outputs.token }}

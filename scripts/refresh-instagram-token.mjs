@@ -10,6 +10,11 @@ import fs from "node:fs";
 
 const token = process.env.INSTAGRAM_ACCESS_TOKEN;
 if (!token) { console.error("INSTAGRAM_ACCESS_TOKEN is not set."); process.exit(1); }
+if (token.startsWith("EAA")) {
+  // Connected through Facebook login: a Facebook Page token, which doesn't expire.
+  console.log("Facebook Page token: it doesn't expire, so there is nothing to refresh.");
+  process.exit(0);
+}
 
 const res = await fetch(`https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token&access_token=${token}`);
 const json = await res.json().catch(() => ({}));

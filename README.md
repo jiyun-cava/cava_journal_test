@@ -82,7 +82,22 @@ The account must be a **Business or Creator** account.
 
 The app can stay in development mode — it only reads your own account.
 
-### Connect Instagram if "Generate token" fails
+### Connect through Facebook login (recommended if "Generate token" fails)
+
+Uses a Facebook Page token, which doesn't expire. Your Facebook account must be
+able to manage the Facebook Page linked to @cava.life.
+
+1. Meta app → **App settings → Basic**: save **App ID** and **App secret** as
+   repository secrets `FACEBOOK_APP_ID` and `FACEBOOK_APP_SECRET`.
+2. Open the [Graph API Explorer](https://developers.facebook.com/tools/explorer).
+   Set **Meta App** to CAVA LIFE and **User or Page** to **User Token**. Add the
+   permissions `pages_show_list`, `pages_read_engagement`, `instagram_basic` and
+   `business_management`. Click **Generate Access Token**, and in Facebook's window
+   tick the CAVA LIFE Page and @cava.life.
+3. Copy the **Access Token** (starts with `EAA`). Within an hour, go to
+   **Actions → Connect Instagram (Facebook login) → Run workflow**, paste it, run.
+
+### Connect Instagram if "Generate token" fails (Instagram login)
 
 The App Dashboard's **Generate token** button sometimes fails with "Could not
 connect". This route gives the same token through Instagram's own login page.
