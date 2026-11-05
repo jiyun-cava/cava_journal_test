@@ -398,8 +398,29 @@ export function englishLine(line, mixLines) {
   return { ...line, text, conf: weighted(same.map((m) => [m.conf, m.text.length])) };
 }
 
-/** Read one slide image. */
-export async function analyzeSlideOcr(file) {
+/**
+ * The colour of the "paper" a photo slide is laid out on: a flat strip along the
+ * bottom (or top) edge, as when a photo sits above a white caption band.
+ */
+export async function paperColor(file) {
+  const { data, info } = await sharp(file).resize(120, 150, { fit: "fill" }).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  const W = info.width, H = info.height;
+  for (const rows of [[H - 6, H], [0, 6]]) {
+    const px = [];
+    for (let y = rows[0]; y < rows[1]; y++) for (let x = 0; x < W; x++) px.push([data[(y * W + x) * 3], data[(y * W + x) * 3 + 1], data[(y * W + x) * 3 + 2]]);
+    const mean = [0, 1, 2].map((c) => px.reduce((a, p) => a + p[c], 0) / px.length);
+    const flat = px.filter((p) => Math.abs(p[0] - mean[0]) + Math.abs(p[1] - mean[1]) + Math.abs(p[2] - mean[2]) < 30).length / px.length;
+    if (flat > 0.95) return mean.map(Math.round);
+  }
+  return null;
+}
+
+/**
+ * Everything read from one slide, with positions: its text lines and the
+ * pictures on it. Used to place a manuscript's pictures and captions.
+ */
+export async function slideLayout(file) {
+  const { width, height } = await sharp(file).metadata();
   const bg = await backgroundInfo(file);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ocr-"));
   try {
@@ -416,22 +437,33 @@ export async function analyzeSlideOcr(file) {
       const confs = l.words.filter((w) => w.text).map((w) => (w.english !== undefined ? [w.englishConf, w.english.length || 1] : [w.conf, w.text.length]));
       return { ...l, text: text.replace(/\s+/g, " ").trim(), conf: weighted(confs) };
     }).filter((l) => l.text).map((l) => englishLine(l, mixLines));
-    const pictures = bg.share >= RULES.minBackground ? await findPictures(file, [...words, ...mixWords], bg.color) : [];
-    const r = linesToParagraphs(lines, pictures);
-    const isText = bg.share >= RULES.minBackground && r.chars >= RULES.minChars && r.conf >= RULES.minConfidence;
-    const hasPictures = isText && r.parts.some((p) => p.kind === "image");
-    return {
-      kind: isText ? "text" : "image",
-      paragraphs: isText ? r.paragraphs : [],
-      note: isText ? r.notes.join(" / ") : "",
-      parts: hasPictures ? r.parts : undefined,
-      title: "",
-      author: "",
-      issue: r.issue,
-      uncertain: isText && r.shaky,
-      _debug: { background: Number(bg.share.toFixed(2)), chars: r.chars, confidence: Math.round(r.conf), pictures: pictures.length },
-    };
+    // Pictures: on the slide's background, or on the paper strip of a photo slide.
+    const paper = bg.share >= RULES.minBackground ? bg.color : await paperColor(file);
+    const pictures = paper ? await findPictures(file, [...words, ...mixWords], paper) : [];
+    return { width, height, bg, paper, lines, pictures };
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+}
+
+/** Read one slide image. */
+export async function analyzeSlideOcr(file) {
+  const layout = await slideLayout(file);
+  const { bg, lines } = layout;
+  const pictures = bg.share >= RULES.minBackground ? layout.pictures : [];
+  const r = linesToParagraphs(lines, pictures);
+  const isText = bg.share >= RULES.minBackground && r.chars >= RULES.minChars && r.conf >= RULES.minConfidence;
+  const hasPictures = isText && r.parts.some((p) => p.kind === "image");
+  return {
+    kind: isText ? "text" : "image",
+    paragraphs: isText ? r.paragraphs : [],
+    note: isText ? r.notes.join(" / ") : "",
+    parts: hasPictures ? r.parts : undefined,
+    title: "",
+    author: "",
+    issue: r.issue,
+    uncertain: isText && r.shaky,
+    layout,
+    _debug: { background: Number(bg.share.toFixed(2)), chars: r.chars, confidence: Math.round(r.conf), pictures: pictures.length },
+  };
 }

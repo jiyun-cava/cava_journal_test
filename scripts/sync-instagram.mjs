@@ -26,7 +26,8 @@ import {
   saveImage, download, toSiteUrl, excerpt,
 } from "./lib/util.mjs";
 import { visionEnabled, analyzeSlide, normalise, slidesToBlocks } from "./lib/vision.mjs";
-import { ocrAvailable, analyzeSlideOcr } from "./lib/ocr.mjs";
+import { ocrAvailable, analyzeSlideOcr, slideLayout } from "./lib/ocr.mjs";
+import { loadManuscripts, findManuscript, assemble } from "./lib/manuscript.mjs";
 import sharp from "sharp";
 
 const cfg = loadConfig();
@@ -39,6 +40,9 @@ const onlyIdx = args.indexOf("--only");
 const ONLY = onlyIdx >= 0 ? String(args[onlyIdx + 1] || "").trim() : "";
 // --fallback: skip slide reading (first image + "text needed"), e.g. to test the fallback.
 const FORCE_FALLBACK = args.includes("--fallback");
+// --manuscripts <dir>: where approved manuscripts are kept (default: manuscripts/).
+const msIdx = args.indexOf("--manuscripts");
+const MANUSCRIPT_DIR = msIdx >= 0 ? path.resolve(args[msIdx + 1]) : null;
 /** Does this post match the --only value (an Instagram link, shortcode or media id)? */
 const matchesOnly = (m) => {
   if (!ONLY) return true;
@@ -51,6 +55,9 @@ const MOCK = mockIdx >= 0 ? args[mockIdx + 1] : null;
 // Testing: a JSON map of carousel child id → slide analysis, used instead of calling Claude.
 const mvIdx = args.indexOf("--mock-vision");
 const MOCK_VISION = mvIdx >= 0 ? JSON.parse(fs.readFileSync(args[mvIdx + 1], "utf8")) : null;
+// --mock-layout FILE: slide layouts by media id, instead of running the reader (tests).
+const mlIdx = args.indexOf("--mock-layout");
+const MOCK_LAYOUT = mlIdx >= 0 ? JSON.parse(fs.readFileSync(args[mlIdx + 1], "utf8")) : null;
 const TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN;
 const API = `https://graph.instagram.com/${ig.apiVersion || "v26.0"}`;
 
@@ -199,6 +206,26 @@ function galleryHtml(media, permalink) {
 /* ---------------- slides → article body ---------------- */
 const siteFile = (src) => path.join(ROOT, "src", src.replace(/^\//, ""));
 
+/** Cut the pictures out of their slides for a manuscript-built article. */
+async function cutPictures(blocks) {
+  const letters = new Map();
+  const out = [];
+  for (const b of blocks) {
+    if (b.type !== "media" || !b.crop) { out.push(b); continue; }
+    const k = letters.get(b.media.src) || 0;
+    letters.set(b.media.src, k + 1);
+    const src = b.media.src.replace(/(\.\w+)$/, `-${String.fromCharCode(97 + k)}$1`);
+    const file = siteFile(b.media.src);
+    const { width, height } = await sharp(file).metadata();
+    const box = { left: Math.max(0, Math.round(b.crop.left)), top: Math.max(0, Math.round(b.crop.top)) };
+    box.width = Math.max(1, Math.min(width - box.left, Math.round(b.crop.width)));
+    box.height = Math.max(1, Math.min(height - box.top, Math.round(b.crop.height)));
+    await sharp(file).extract(box).jpeg({ quality: 88 }).toFile(siteFile(src));
+    out.push({ ...b, media: { type: "image", src, scale: Math.min(1, Math.max(0.2, box.width / width)) } });
+  }
+  return out;
+}
+
 /**
  * A text slide that also carries pictures (a book cover, a photo, a screenshot)
  * is split in reading order: its text becomes live text and each picture is cut
@@ -242,8 +269,11 @@ function mediaHtml(m, permalink) {
 
 function blocksHtml(blocks, permalink) {
   return blocks.map((b) => {
+    if (b.type === "heading") return `<h4>${escapeHtml(b.text)}</h4>`;
+    if (b.type === "bio") return `${b.name ? `<h3>${escapeHtml(b.name)}</h3>\n` : ""}<p>${escapeHtml(b.text)}</p>`;
     if (b.type === "media") {
       let fig = mediaHtml(b.media, permalink);
+      if (b.alt) fig = fig.replace(' alt=""', ` alt="${escapeHtml(b.alt)}"`);
       if (b.caption) fig = fig.replace(/<\/figure>$/, `<figcaption>${escapeHtml(b.caption)}</figcaption></figure>`);
       if (b.media.scale && b.media.scale < 0.95) {
         return `<div class="ig-gallery ig-cutout">${fig.replace(/^<figure>/, `<figure style="width:${Math.round(b.media.scale * 100)}%">`)}</div>`;
@@ -264,7 +294,9 @@ function reviewMarkdown({ title, journal, file, permalink, mode, blocks, rawBase
     `### ${title}`,
     `${journal} · [Instagram](${permalink}) · \`${path.relative(ROOT, file)}\``,
     "",
-    mode === "vision"
+    mode === "manuscript"
+      ? "Text comes from the approved manuscript. **Check that each picture is in the right place** and its caption is right, then merge."
+      : mode === "vision"
       ? "Text slides were transcribed automatically. **Check every word against the post** before merging."
       : "**Text needed.** Only the first image was imported. Open the file, replace `본문 준비 중` with the article text, then merge.",
     ...warnings.map((w) => `> ⚠️ ${w}`),
@@ -273,6 +305,8 @@ function reviewMarkdown({ title, journal, file, permalink, mode, blocks, rawBase
   for (const b of blocks) {
     if (b.type === "media") lines.push(b.media.type === "image" ? img(b.media.src) : `▶ video${b.media.poster ? " " + img(b.media.poster) : ""}`, ...(b.caption ? [`<sub>${escapeHtml(b.caption)}</sub>`] : []), "");
     else if (b.type === "placeholder") lines.push("_(본문 준비 중)_", "");
+    else if (b.type === "heading") lines.push(`**${b.text}**`, "");
+    else if (b.type === "bio") lines.push(`**${b.name || "(name)"}**`, `> ${b.text}`, "");
     else lines.push(...b.paragraphs.map((p) => `> ${p}\n>`), ...b.notes.map((n) => `> _${n}_`), "");
   }
   return lines.join("\n");
@@ -299,6 +333,8 @@ async function main() {
   // title is the same article, so it isn't imported twice.
   const migrated = new Set(existing.filter((p) => p.data.source !== "instagram").map((p) => p.handle));
   const media = await fetchMedia(ONLY ? null : cutoff);
+  const manuscripts = loadManuscripts(MANUSCRIPT_DIR || path.join(ROOT, "manuscripts"));
+  if (manuscripts.length) console.log(`${manuscripts.length} manuscript(s) on file.`);
 
   const fresh = media
     .filter((m) => ONLY ? matchesOnly(m) : !known.has(String(m.id)))
@@ -350,11 +386,36 @@ async function main() {
     const saved = await saveMedia(items, path.join(MEDIA_DIR, journal, tmpHandle), maxBytes);
     const warnings = [];
 
-    // 1) Read each image slide; 2) fall back to "first image + text needed".
+    // 0) Approved manuscript available: its text, with the carousel's pictures in place.
+    // 1) Otherwise read each image slide; 2) fall back to "first image + text needed".
     let mode = "manual";
     let blocks = [];
     let author, issue;
-    if (useVision && !FORCE_FALLBACK && saved.length) {
+    const manuscript = !FORCE_FALLBACK && saved.length ? findManuscript(manuscripts, [title, m.caption || ""]) : null;
+    if (manuscript && !ocrAvailable() && !MOCK_LAYOUT) warnings.push("A manuscript was found, but the slide reader isn't installed, so pictures couldn't be placed.");
+    if (manuscript && (ocrAvailable() || MOCK_LAYOUT)) {
+      try {
+        console.log(`      manuscript: ${manuscript.file}`);
+        const slides = [];
+        for (const [i, s] of saved.entries()) {
+          const layout = s.type !== "image" ? null
+            : MOCK_LAYOUT ? MOCK_LAYOUT[items[i]?.id] || null
+            : await slideLayout(siteFile(s.src));
+          slides.push({ media: s, layout });
+        }
+        const r = assemble(manuscript, slides);
+        blocks = await cutPictures(r.blocks);
+        title = r.title;
+        author = r.author || undefined;
+        warnings.push(...r.warnings);
+        mode = "manuscript";
+      } catch (e) {
+        console.warn(`    ! manuscript matching failed: ${e.message}`);
+        warnings.push(`The manuscript "${manuscript.file}" was found but couldn't be matched to the slides (${e.message.slice(0, 120)}).`);
+        blocks = [];
+      }
+    }
+    if (mode !== "manuscript" && useVision && !FORCE_FALLBACK && saved.length) {
       try {
         const slides = [];
         for (const [i, s] of saved.entries()) {
@@ -425,6 +486,13 @@ async function main() {
     const cover = blocks.find((b) => b.type === "media" && b.media.type === "image")?.media.src
       || blocks.find((b) => b.type === "media")?.media.poster;
     const firstText = blocks.find((b) => b.type === "text")?.paragraphs.join(" ");
+    // The page already shows the cover above the title: don't repeat it as the first picture
+    // (its caption, if any, stays as a small note).
+    const bodyBlocks = [...blocks];
+    if (bodyBlocks[0]?.type === "media" && bodyBlocks[0].media.src === cover && !bodyBlocks[0].media.scale) {
+      const first = bodyBlocks.shift();
+      if (first.caption) bodyBlocks.unshift({ type: "text", paragraphs: [], notes: [first.caption] });
+    }
 
     const file = writePost({
       journal,
@@ -442,7 +510,7 @@ async function main() {
         instagram_permalink: m.permalink,
         needs_text: mode === "manual" ? true : undefined,
       },
-      html: `${blocksHtml(blocks, m.permalink)}${captionText ? `\n<div class="ig-caption">\n${captionText}\n</div>` : ""}`,
+      html: `${blocksHtml(bodyBlocks, m.permalink)}${captionText ? `\n<div class="ig-caption">\n${captionText}\n</div>` : ""}`,
     });
     state.seen.push(m.id);
     titles.push(title);

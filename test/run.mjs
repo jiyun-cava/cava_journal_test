@@ -186,7 +186,8 @@ await t("sync creates articles, routes by hashtag, skips old & #notjournal", asy
   assert.match(md, /instagram_id: "1800000000000001"/);
   assert.match(md, /class="mention" href="https:\/\/www.instagram.com\/someone\/"/);
   // No ANTHROPIC_API_KEY → fallback: first image + "text needed" for an editor
-  assert.equal((md.match(/<figure>/g) || []).length, 1, "only the first image");
+  assert.equal((md.match(/<figure>/g) || []).length, 0, "the first image is the cover, not repeated in the text");
+  assert.match(md, /cover: "\/media\/cavajournal\/홍길동-어느-오후의-산책\/01.jpg"/);
   assert.match(md, /needs_text: true/);
   assert.match(md, /본문 준비 중/);
   assert.ok(fs.existsSync(path.join(tmp, "src/media/cavajournal/홍길동-어느-오후의-산책/01.jpg")));
@@ -229,11 +230,12 @@ await t("vision: text slides become live text, title from the title slide", asyn
   assert.match(md, /issue: 183/);
   assert.match(md, /<p>둘째 단락은 다음 장으로 이어 집니다.<\/p>/);
   assert.match(md, /slide-note">출처: 테스트 라이브러리/);
-  assert.equal((md.match(/<figure>/g) || []).length, 3, "cover, title slide, last image");
+  assert.equal((md.match(/<figure>/g) || []).length, 2, "title slide, last image (the cover is shown above the title)");
   const dir = path.join(tmp, "src/media/cavajournal/김테스트-서울의-습관");
   assert.deepEqual(fs.readdirSync(dir).sort(), ["01.jpg", "02.jpg", "05.jpg"], "text-slide images dropped");
   const bodyHtml = md.slice(md.indexOf("<div class=\"rte\">"));
-  const order = ["01.jpg", "02.jpg", "첫 단락", "05.jpg"].map((s) => bodyHtml.indexOf(s));
+  assert.ok(!bodyHtml.includes("01.jpg"), "cover not repeated");
+  const order = ["02.jpg", "첫 단락", "05.jpg"].map((s) => bodyHtml.indexOf(s));
   assert.deepEqual([...order].sort((a, b) => a - b), order, "carousel order kept");
   const rep = fs.readFileSync(report, "utf8");
   assert.match(rep, /### 김테스트 — 서울의 습관/);
@@ -251,7 +253,8 @@ await t("--only <link> --fallback re-imports one handled post as a fallback draf
   const md = fs.readFileSync(f, "utf8");
   assert.match(md, /needs_text: true/);
   assert.match(md, /본문 준비 중/);
-  assert.equal((md.match(/<figure>/g) || []).length, 1, "only the first image");
+  assert.equal((md.match(/<figure>/g) || []).length, 0, "only the cover");
+  assert.match(md, /cover: /);
   fs.rmSync(f);
   fs.rmSync(path.join(tmp, "src/media/cavajournal/캡션-첫-줄"), { recursive: true, force: true });
   await assert.rejects(execFileAsync("node", ["scripts/sync-instagram.mjs", "--mock", vmock, "--only", "https://www.instagram.com/p/NOPE/"],
@@ -277,7 +280,7 @@ await t("text slide with a picture: text is live, the picture is cut out with it
   await execFileAsync("node", ["scripts/sync-instagram.mjs", "--mock", pmock, "--mock-vision", analyses], { cwd: tmp, encoding: "utf8" });
   const md = fs.readFileSync(path.join(tmp, "src/posts/cavajournal/책-이야기.md"), "utf8");
   const body = md.slice(md.indexOf('<div class="rte">'));
-  const order = ["01.jpg", "위 단락.", "02-a.jpg", "저자, 《책》, 2026", "아래 단락."].map((x) => body.indexOf(x));
+  const order = ["위 단락.", "02-a.jpg", "저자, 《책》, 2026", "아래 단락."].map((x) => body.indexOf(x));
   assert.ok(order.every((i) => i >= 0), body);
   assert.deepEqual([...order].sort((a, b) => a - b), order, "reading order kept");
   assert.match(body, /<figcaption>저자, 《책》, 2026<\/figcaption>/);
@@ -287,6 +290,48 @@ await t("text slide with a picture: text is live, the picture is cut out with it
   assert.deepEqual(fs.readdirSync(dir).sort(), ["01.jpg", "02-a.jpg"], "whole slide dropped, cut-out kept");
   const meta = await sharp(path.join(dir, "02-a.jpg")).metadata();
   assert.deepEqual([meta.width, meta.height], [400, 500]);
+});
+
+await t("manuscript: its text, the carousel's pictures in place, captions from the manuscript", async () => {
+  const dir = path.join(ROOT, "test/fixtures/manuscripts");
+  const layouts = path.join(dir, "layout-imsi.json");
+  const ids = Object.keys(JSON.parse(fs.readFileSync(layouts, "utf8")));
+  const pmock = path.join(tmp, "mock-imsi.json");
+  fs.writeFileSync(pmock, JSON.stringify({ data: [{
+    id: "1800000000000009", caption: "임시의 우리: 아트페어 만들기 실전편\n\n#morejournal", media_type: "CAROUSEL_ALBUM",
+    permalink: "https://www.instagram.com/p/TEST9/", timestamp: "2026-10-13T10:00:00+0000",
+    children: { data: ids.map((id) => ({ id, media_type: "IMAGE", media_url: `${base}/i/${id}.jpg` })) },
+  }] }));
+  const report = path.join(tmp, "report-ms.md");
+  const out = (await execFileAsync("node", ["scripts/sync-instagram.mjs", "--mock", pmock, "--mock-layout", layouts, "--manuscripts", dir],
+    { cwd: tmp, encoding: "utf8", env: { ...process.env, SYNC_REPORT: report } })).stdout;
+  assert.match(out, /manuscript: /);
+  const f = path.join(tmp, "src/posts/cavajournal/지혜진-임시의-우리-아트페어-만들기-실전편.md");
+  assert.ok(fs.existsSync(f), out);
+  const md = fs.readFileSync(f, "utf8");
+  assert.match(md, /title: "지혜진 — 임시의 우리: 아트페어 만들기 실전편"/);
+  assert.doesNotMatch(md, /needs_text/);
+  const body = md.slice(md.indexOf('<div class="rte">'));
+  // Text is the manuscript's (1안), word for word; 2안 is not used.
+  assert.match(body, /<p>그런데 올해 9월, 홍콩에서 시작된 대안 아트페어 파빌리온PAVILION의 서울 파트너를/);
+  assert.doesNotMatch(body, /작년 겨울, 상히읗을 운영하며/);
+  assert.match(body, /<h4>1\. 공간을 찾는다\.<\/h4>/);
+  assert.match(body, /<h4>6\. 다음을 위하여\.<\/h4>/);
+  // Pictures sit where they are in the carousel, with the manuscript's captions.
+  const at = (x) => { const i = body.indexOf(x); assert.ok(i >= 0, `missing: ${x}`); return i; };
+  const seq = [
+    at("그렇게 파빌리온 서울은 용산의 KCS에서 시작됐다."), at("04-a.jpg"), at("<figcaption>KCS 현장 답사."),
+    at("<h4>2. 같이할"), at("동네 같은 공동체를"), at("07-a.jpg"), at("08.jpg"), at("09.jpg"), at("<h4>4. 문을 연다"),
+    at("11.jpg"), at("12-a.jpg"), at("오선영의 퍼포먼스."), at("16-a.jpg"), at("<h4>5. 그리고 철거"), at("18.jpg"), at("<h4>6. 다음을"),
+  ];
+  assert.deepEqual([...seq].sort((a, b) => a - b), seq, "reading order");
+  assert.match(body, /alt="폐부표에서 풍기는 미세한 비린내/, "caption printed on a photo becomes its alt text");
+  assert.match(body, /alt="한남 나잇에 진행한 오프닝 당일 1 \/ 한남 나잇에 진행한 오프닝 당일 2"/);
+  assert.match(body, /<h3>지혜진<\/h3>\n<p>용산구 해방촌에 위치한 갤러리, 상히읗\(@sangheeut\)을 운영하고 있다\.<\/p>/);
+  assert.ok(!body.includes("/01.jpg"), "cover not repeated");
+  const rep = fs.readFileSync(report, "utf8");
+  assert.match(rep, /approved manuscript/);
+  assert.match(rep, /used "1안"/);
 });
 
 await t("site builds with synced posts", () => {
