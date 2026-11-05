@@ -137,6 +137,8 @@ Every new post goes through these steps:
 2. **Fallback when reading fails:** only the first image is imported, plus a "본문 준비 중" placeholder for an editor to replace with the text.
 3. **Review.** With `"review": "pull-request"` (the default), each batch of new posts opens a pull request. Its description shows the full article: images, then the transcribed text in order. An editor checks it against the post and fixes text in **Files changed → ⋯ → Edit file**. **Merge** publishes; **Close** discards.
 
+**Test or redo one post:** *Actions → Sync Instagram & deploy → Run workflow*, paste the post's Instagram link in **post**, and tick **fallback** to see the "first image + text needed" draft. It opens its own pull request (close it afterwards if it was only a test). Without **fallback**, the same box re-imports a post whose pull request was closed.
+
 The caption is kept under the article. Its first line is the title when there's no title slide.
 
 ```

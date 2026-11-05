@@ -229,6 +229,24 @@ await t("vision: text slides become live text, title from the title slide", asyn
   assert.match(rep, /https:\/\/raw.example\/b\/src\/media\/cavajournal\/김테스트-서울의-습관\/01.jpg/);
 });
 
+await t("--only <link> --fallback re-imports one handled post as a fallback draft", async () => {
+  const vmock = path.join(tmp, "mock-vision-post.json");
+  const analyses = path.join(tmp, "mock-vision.json");
+  const out = (await execFileAsync("node", ["scripts/sync-instagram.mjs", "--mock", vmock, "--mock-vision", analyses,
+    "--only", "https://www.instagram.com/p/TEST7/?img_index=1", "--fallback"], { cwd: tmp, encoding: "utf8" })).stdout;
+  assert.match(out, /Importing one post only/);
+  const f = path.join(tmp, "src/posts/cavajournal/캡션-첫-줄.md");
+  assert.ok(fs.existsSync(f), "fallback title comes from the caption");
+  const md = fs.readFileSync(f, "utf8");
+  assert.match(md, /needs_text: true/);
+  assert.match(md, /본문 준비 중/);
+  assert.equal((md.match(/<figure>/g) || []).length, 1, "only the first image");
+  fs.rmSync(f);
+  fs.rmSync(path.join(tmp, "src/media/cavajournal/캡션-첫-줄"), { recursive: true, force: true });
+  await assert.rejects(execFileAsync("node", ["scripts/sync-instagram.mjs", "--mock", vmock, "--only", "https://www.instagram.com/p/NOPE/"],
+    { cwd: tmp, encoding: "utf8" }), /Couldn't find the post/);
+});
+
 await t("site builds with synced posts", () => {
   execFileSync("npx", ["@11ty/eleventy", "--quiet"], { cwd: tmp, env: { ...process.env, ELEVENTY_RUN_MODE: "build" } });
   const page = fs.readFileSync(path.join(tmp, "_site/blogs/cavajournal/홍길동-어느-오후의-산책/index.html"), "utf8");

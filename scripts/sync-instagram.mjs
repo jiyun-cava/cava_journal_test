@@ -33,6 +33,18 @@ const ig = cfg.instagram;
 const args = process.argv.slice(2);
 const DRY = args.includes("--dry-run");
 const ALL = args.includes("--all");
+// --only <link or id>: (re)import just this one post, even if it was handled before.
+const onlyIdx = args.indexOf("--only");
+const ONLY = onlyIdx >= 0 ? String(args[onlyIdx + 1] || "").trim() : "";
+// --fallback: skip slide reading (first image + "text needed"), e.g. to test the fallback.
+const FORCE_FALLBACK = args.includes("--fallback");
+/** Does this post match the --only value (an Instagram link, shortcode or media id)? */
+const matchesOnly = (m) => {
+  if (!ONLY) return true;
+  if (String(m.id) === ONLY) return true;
+  const code = (ONLY.match(/instagram\.com\/(?:[^/]+\/)?(?:p|reel|tv)\/([^/?#]+)/) || [, ONLY])[1];
+  return Boolean(m.permalink && code && m.permalink.includes(`/${code}`));
+};
 const mockIdx = args.indexOf("--mock");
 const MOCK = mockIdx >= 0 ? args[mockIdx + 1] : null;
 // Testing: a JSON map of carousel child id → slide analysis, used instead of calling Claude.
@@ -86,6 +98,7 @@ async function fetchMedia(cutoff) {
   for (let page = 0; url && page < 40; page++) {
     const json = await api(url);
     out.push(...(json.data || []));
+    if (ONLY && out.some(matchesOnly)) break;
     const oldest = json.data?.[json.data.length - 1];
     if (!oldest || (cutoff && new Date(oldest.timestamp) < cutoff)) break;
     url = json.paging?.next || null;
@@ -240,13 +253,17 @@ async function main() {
   // Articles already on the site from Shopify: an Instagram post with the same
   // title is the same article, so it isn't imported twice.
   const migrated = new Set(existing.filter((p) => p.data.source !== "instagram").map((p) => p.handle));
-  const media = await fetchMedia(cutoff);
+  const media = await fetchMedia(ONLY ? null : cutoff);
 
   const fresh = media
-    .filter((m) => !known.has(String(m.id)))
-    .filter((m) => !cutoff || new Date(m.timestamp) >= cutoff)
+    .filter((m) => ONLY ? matchesOnly(m) : !known.has(String(m.id)))
+    .filter((m) => ONLY || !cutoff || new Date(m.timestamp) >= cutoff)
     .filter((m) => m.media_product_type !== "STORY")
     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)); // oldest first → stable handles
+  if (ONLY && !fresh.length) {
+    throw new Error(`Couldn't find the post "${ONLY}" on the account. Paste the post's full Instagram link.`);
+  }
+  if (ONLY) console.log(`Importing one post only: ${fresh[0].permalink || fresh[0].id}${FORCE_FALLBACK ? " (fallback)" : ""}`);
 
   const skip = new Set((ig.skipHashtags || []).map((t) => t.toLowerCase()));
   const requiredTag = ig.requireHashtag ? ig.requireHashtag.toLowerCase() : null;
@@ -292,7 +309,7 @@ async function main() {
     let mode = "manual";
     let blocks = [];
     let author, issue;
-    if (useVision && saved.length) {
+    if (useVision && !FORCE_FALLBACK && saved.length) {
       try {
         const slides = [];
         for (const [i, s] of saved.entries()) {
@@ -325,7 +342,8 @@ async function main() {
     if (mode === "manual") {
       const first = saved.find((s) => s.type === "image") || saved[0];
       blocks = [...(first ? [{ type: "media", media: first }] : []), { type: "placeholder" }];
-      if (!useVision) warnings.push("Automatic transcription is off or unavailable, so only the first image was imported.");
+      if (FORCE_FALLBACK) warnings.push("Imported as a fallback draft on request (slide reading skipped).");
+      else if (!useVision) warnings.push("Automatic transcription is off or unavailable, so only the first image was imported.");
     }
 
     if (migrated.has(handleize(title))) {

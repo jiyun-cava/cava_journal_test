@@ -15,6 +15,14 @@ on:
         description: "Import ALL Instagram posts, ignoring importAfter"
         type: boolean
         default: false
+      post:
+        description: "Only this post: paste its Instagram link (re-imports it even if it was imported or closed before)"
+        type: string
+        default: ""
+      fallback:
+        description: "Fallback draft: skip slide reading (first image + 본문 준비 중)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write        # commit new posts
@@ -76,13 +84,20 @@ jobs:
           SYNC_REPORT: ${{ runner.temp }}/report.md
           REVIEW_BRANCH: instagram/${{ github.run_id }}
           REVIEW_RAW_BASE: https://raw.githubusercontent.com/${{ github.repository }}/instagram/${{ github.run_id }}
+          ONLY_POST: ${{ inputs.post }}
+          FALLBACK: ${{ inputs.fallback }}
+          BACKFILL: ${{ inputs.backfill }}
         run: |
           if [ -z "$INSTAGRAM_ACCESS_TOKEN" ]; then
             echo "::warning::INSTAGRAM_ACCESS_TOKEN secret is not set — skipping Instagram sync."
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          node scripts/sync-instagram.mjs ${{ inputs.backfill && '--all' || '' }}
+          set --
+          [ "$BACKFILL" = "true" ] && set -- "$@" --all
+          [ "$FALLBACK" = "true" ] && set -- "$@" --fallback
+          [ -n "$ONLY_POST" ] && set -- "$@" --only "$ONLY_POST"
+          node scripts/sync-instagram.mjs "$@"
 
       # review = "pull-request": each batch of new posts becomes a pull request.
       # An editor checks the text, fixes it if needed, and merges to publish.
@@ -114,8 +129,10 @@ jobs:
           # Remember these posts on main so they aren't picked up again.
           git checkout main
           git add instagram-state.json
-          git commit -m "Instagram: mark posts as sent for review [skip ci]"
-          git push origin main
+          if ! git diff --cached --quiet; then
+            git commit -m "Instagram: mark posts as sent for review [skip ci]"
+            git push origin main
+          fi
 
       # review = "publish": publish straight away, no review.
       - name: Commit new articles
