@@ -1,0 +1,25 @@
+# Developer helper: copies the slides of the given posts to the "debug-slides" branch.
+name: Debug - copy slides
+on:
+  workflow_dispatch:
+    inputs:
+      posts:
+        description: "Instagram links, separated by spaces"
+        required: true
+permissions:
+  contents: write
+jobs:
+  copy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - env:
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          POSTS: ${{ inputs.posts }}
+        run: |
+          node scripts/debug-slides.mjs $POSTS
+          git config user.name cava-bot && git config user.email cava-bot@users.noreply.github.com
+          git checkout --orphan debug-slides && git rm -rqf --cached . && git add debug
+          git commit -qm "debug slides" && git push -f origin debug-slides
