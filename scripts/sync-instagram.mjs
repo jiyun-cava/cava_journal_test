@@ -68,10 +68,16 @@ const FIELDS = [
   "children{id,media_type,media_url,thumbnail_url}",
 ].join(",");
 
-function setOutput(changed, count, titles = []) {
+function setOutput(changed, count, titles = [], published = []) {
   if (process.env.GITHUB_OUTPUT) {
     const t = titles.join(" / ").replace(/[\r\n]/g, " ").slice(0, 200);
-    fs.appendFileSync(process.env.GITHUB_OUTPUT, `changed=${changed}\ncount=${count}\ntitles=${t}\n`);
+    const pt = published.map((x) => x.title).join(" / ").replace(/[\r\n]/g, " ").slice(0, 200);
+    fs.appendFileSync(process.env.GITHUB_OUTPUT,
+      `changed=${changed}\ncount=${count}\ntitles=${t}\npublished=${published.length}\npublished_titles=${pt}\n`);
+  }
+  // Files of articles to publish straight away (built from an approved manuscript).
+  if (process.env.SYNC_PUBLISH_LIST) {
+    fs.writeFileSync(process.env.SYNC_PUBLISH_LIST, published.flatMap((x) => x.paths).map((f) => path.relative(ROOT, f)).join("\n") + (published.length ? "\n" : ""));
   }
 }
 
@@ -391,6 +397,7 @@ async function main() {
   const rawBase = process.env.REVIEW_RAW_BASE || "";
   const reports = [];
   const titles = [];
+  const published = [];
 
   let created = 0;
   for (const m of fresh) {
@@ -545,16 +552,22 @@ async function main() {
       html: `${blocksHtml(bodyBlocks, m.permalink)}${captionText ? `\n<div class="ig-caption">\n${captionText}\n</div>` : ""}`,
     });
     state.seen.push(m.id);
+    created++;
+    // Built from the approved manuscript: published as soon as the post is up (unless set to review).
+    if (mode === "manuscript" && (ig.manuscriptReview || "publish") === "publish") {
+      published.push({ title, paths: [file, path.join(MEDIA_DIR, journal, handle)] });
+      console.log(`      → publishes now (approved manuscript)${warnings.length ? `; notes: ${warnings.join(" | ")}` : ""}`);
+      continue;
+    }
     titles.push(title);
     reports.push(reviewMarkdown({ title, journal, file, permalink: m.permalink, mode, blocks, rawBase, warnings }));
-    created++;
   }
 
   if (!DRY) writeState(state);
   const reportFile = process.env.SYNC_REPORT || path.join(os.tmpdir(), "instagram-sync-report.md");
   if (reports.length) fs.writeFileSync(reportFile, reports.join("\n\n---\n\n"));
   console.log(created ? `${DRY ? "Would create" : "Created"} ${created} article(s).` : "No new Instagram posts.");
-  setOutput(!DRY && created > 0, created, titles);
+  setOutput(!DRY && titles.length > 0, titles.length, titles, DRY ? [] : published);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

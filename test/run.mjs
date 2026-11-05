@@ -311,8 +311,12 @@ await t(`manuscript (${label}): its text, the carousel's pictures in place, capt
     children: { data: ids.map((id) => ({ id, media_type: "IMAGE", media_url: `${base}/i/${id}.jpg` })) },
   }] }));
   const report = path.join(tmp, "report-ms.md");
+  const publishList = path.join(tmp, "publish.txt");
+  const ghOut = path.join(tmp, "gh-output.txt");
+  fs.rmSync(report, { force: true });
+  fs.writeFileSync(ghOut, "");
   const out = (await execFileAsync("node", ["scripts/sync-instagram.mjs", "--mock", pmock, "--mock-layout", layouts, "--manuscripts", dir],
-    { cwd: tmp, encoding: "utf8", env: { ...process.env, SYNC_REPORT: report } })).stdout;
+    { cwd: tmp, encoding: "utf8", env: { ...process.env, SYNC_REPORT: report, SYNC_PUBLISH_LIST: publishList, GITHUB_OUTPUT: ghOut } })).stdout;
   assert.match(out, /manuscript: /);
   const f = path.join(tmp, "src/posts/cavajournal/지혜진-임시의-우리-아트페어-만들기-실전편.md");
   assert.ok(fs.existsSync(f), out);
@@ -337,9 +341,15 @@ await t(`manuscript (${label}): its text, the carousel's pictures in place, capt
   assert.match(body, /alt="한남 나잇에 진행한 오프닝 당일 1 \/ 한남 나잇에 진행한 오프닝 당일 2"/);
   assert.match(body, /<h3>지혜진<\/h3>\n<p>용산구 해방촌에 위치한 갤러리, 상히읗\(@sangheeut\)을 운영하고 있다\.<\/p>/);
   assert.ok(!body.includes("/01.jpg"), "cover not repeated");
-  const rep = fs.readFileSync(report, "utf8");
-  assert.match(rep, /approved manuscript/);
-  assert.match(rep, /used "1안"/);
+  // Approved text: published straight away, not sent for review.
+  assert.match(out, /publishes now/);
+  assert.match(out, /used "1안"/);
+  assert.ok(!fs.existsSync(report), "no review report");
+  assert.deepEqual(fs.readFileSync(publishList, "utf8").trim().split("\n"),
+    ["src/posts/cavajournal/지혜진-임시의-우리-아트페어-만들기-실전편.md", "src/media/cavajournal/지혜진-임시의-우리-아트페어-만들기-실전편"]);
+  const gh = fs.readFileSync(ghOut, "utf8");
+  assert.match(gh, /changed=false/);
+  assert.match(gh, /published=1/);
 });
 
 await t("site builds with synced posts", () => {

@@ -291,6 +291,9 @@ export function loadManuscripts(dir) {
       let comments = fs.existsSync(`${base}.comments.json`) ? JSON.parse(fs.readFileSync(`${base}.comments.json`, "utf8")) : [];
       if (/\.html?$/i.test(f)) ({ text, comments } = googleDocHtmlToManuscript(text));
       const m = parseManuscript(text, comments);
+      const meta = fs.existsSync(`${base}.json`) ? JSON.parse(fs.readFileSync(`${base}.json`, "utf8")) : {};
+      if (meta.author) m.author = meta.author;
+      if (meta.title && !m.title) m.title = meta.title;
       out.push({ ...m, file: path.relative(process.cwd(), path.join(dir, f)) });
     } catch (e) {
       console.warn(`  ! manuscript ${f} couldn't be read: ${e.message}`);

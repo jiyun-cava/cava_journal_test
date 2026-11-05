@@ -1,6 +1,6 @@
 # Builds the site and publishes it to GitHub Pages.
 #  - on every push to main (your own edits)
-#  - every 2 hours: checks Instagram, commits any new articles, then deploys
+#  - every hour: checks Instagram, commits any new articles, then deploys
 #  - manually from the Actions tab ("Run workflow")
 name: Sync Instagram & deploy
 
@@ -8,7 +8,7 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: "17 */2 * * *"   # UTC; every 2 hours at :17
+    - cron: "17 * * * *"   # every hour at :17
   workflow_dispatch:
     inputs:
       backfill:
@@ -84,6 +84,7 @@ jobs:
           # "first image + text needed" drafts.
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           SYNC_REPORT: ${{ runner.temp }}/report.md
+          SYNC_PUBLISH_LIST: ${{ runner.temp }}/publish.txt
           REVIEW_BRANCH: instagram/${{ github.run_id }}
           REVIEW_RAW_BASE: https://raw.githubusercontent.com/${{ github.repository }}/instagram/${{ github.run_id }}
           ONLY_POST: ${{ inputs.post }}
@@ -100,6 +101,18 @@ jobs:
           [ "$FALLBACK" = "true" ] && set -- "$@" --fallback
           [ -n "$ONLY_POST" ] && set -- "$@" --only "$ONLY_POST"
           node scripts/sync-instagram.mjs "$@"
+
+      # Articles built from an approved manuscript go live straight away.
+      - name: Publish manuscript articles
+        if: steps.sync.outputs.published != '' && steps.sync.outputs.published != '0'
+        run: |
+          git config user.name  "cava-bot"
+          git config user.email "cava-bot@users.noreply.github.com"
+          xargs -d '\n' git add -- < "${{ runner.temp }}/publish.txt"
+          git add instagram-state.json
+          git commit -m "Instagram: publish ${{ steps.sync.outputs.published_titles }}"
+          git pull --rebase -q origin main
+          git push origin HEAD:main
 
       # review = "pull-request": each batch of new posts becomes a pull request.
       # An editor checks the text, fixes it if needed, and merges to publish.
@@ -155,6 +168,8 @@ jobs:
         id: decide
         run: |
           if [ "${{ github.event_name }}" = "push" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ steps.sync.outputs.published }}" ] && [ "${{ steps.sync.outputs.published }}" != "0" ]; then
             echo "deploy=true" >> "$GITHUB_OUTPUT"
           elif [ "${{ steps.sync.outputs.changed }}" = "true" ] && [ "${{ steps.mode.outputs.review }}" != "pull-request" ]; then
             echo "deploy=true" >> "$GITHUB_OUTPUT"
