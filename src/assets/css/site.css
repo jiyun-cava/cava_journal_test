@@ -173,6 +173,8 @@ main { min-height: 60vh; }
 .ig-gallery { display: grid; gap: 12px; margin: 0 0 2em; }
 .ig-gallery figure { margin: 0; }
 .ig-gallery img, .ig-gallery video { margin: 0; width: 100%; }
+/* A picture cut out of a text slide keeps its size on the slide. */
+.ig-cutout figure { min-width: min(100%, 240px); }
 .ig-caption p { margin: 0 0 1.25em; }
 .ig-caption { margin-top: 3em; padding-top: 1.5em; border-top: 1px solid var(--line); font-size: 15px; color: #3d3d3d; }
 .slide-text { margin: 0 0 2em; }

@@ -133,6 +133,7 @@ Every new post goes through these steps:
    - **Photo or artwork slide:** kept as an image.
    - **Title slide** (title + handwritten signature): kept as an image. The title comes from the caption's first line.
    - **Text slide:** transcribed into live text. The slide image is not kept. A sentence cut off at the end of one slide is joined with the next. Source lines like `← 출처: …` become small notes.
+   - **Text slide with a picture on it** (a book cover, a photo, a screenshot): the text becomes live text and the picture is cut out of the slide and placed where it was, at the same size, with the small line next to or under it as its caption.
    - **Issue number** next to the CAVA *journal* wordmark is saved as `issue`.
 2. **Fallback when reading fails:** only the first image is imported, plus a "본문 준비 중" placeholder for an editor to replace with the text.
 3. **Review.** With `"review": "pull-request"` (the default), each batch of new posts opens a pull request. Its description shows the full article: images, then the transcribed text in order. An editor checks it against the post and fixes text in **Files changed → ⋯ → Edit file**. **Merge** publishes; **Close** discards.
@@ -150,7 +151,7 @@ The caption is kept under the article. Its first line is the title when there's 
 #### Slide reading: free by default
 
 - Nothing to set up: the reader installs itself on every run.
-- It reads typeset Korean well but can misread rarer syllables. Slides it is unsure about are flagged in the pull request ("some words may be misread"), so proofread those first.
+- It reads each slide twice (Korean, then Korean + English) and keeps the Korean reading, taking English only where the Korean reading found none. It reads typeset Korean well; italic text and rarer syllables are its weak spots. Slides it is unsure about are flagged in the pull request ("some words may be misread"), so proofread those first.
 - Optional, paid: set `"reader": "claude"` and add an `ANTHROPIC_API_KEY` secret for more accurate reading, including the title and handwritten name on the title slide.
 - In **Settings → Actions → General → Workflow permissions**, tick **Allow GitHub Actions to create and approve pull requests**. Without it, the review pull request can't be opened.
 

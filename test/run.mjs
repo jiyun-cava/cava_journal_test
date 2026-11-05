@@ -127,6 +127,17 @@ if (ocrAvailable()) {
     assert.match(t1.paragraphs[1], /^그 가게는/);
     assert.equal(t1.issue, 183);
     assert.equal((await analyzeSlideOcr(path.join(dir, "p.jpg"))).kind, "image");
+    // Text slide with a book cover and its caption: text stays text, the cover is cut out.
+    const cover = `<rect x="560" y="560" width="380" height="560" fill="#f2c94c"/><circle cx="750" cy="800" r="120" fill="#c0392b"/><text x="600" y="640" font-family="Noto Sans CJK KR" font-size="30" fill="#222">표지 글씨</text>`;
+    await sharp(svg([line(160,"작은 서점의 주인은 아침마다 창문을 닦는다."), line(228,"손님이 오기 전에 먼저 거리를 바라본다."), cover,
+      line(1180,"홍길동, 《작은 서점》, 출판사, 2026", 26), line(1280,"그 가게는 올해로 열 해째 같은 자리에 있다.")].join(""))).jpeg().toFile(path.join(dir, "m.jpg"));
+    const m1 = await analyzeSlideOcr(path.join(dir, "m.jpg"));
+    assert.equal(m1.kind, "text", JSON.stringify(m1._debug));
+    assert.deepEqual(m1.parts.map((p) => p.kind), ["text", "image", "text"], JSON.stringify(m1.parts));
+    const pic = m1.parts[1];
+    assert.ok(Math.abs(pic.box.left - 560) < 20 && Math.abs(pic.box.top - 560) < 20 && Math.abs(pic.box.width - 380) < 30, JSON.stringify(pic.box));
+    assert.match(pic.caption, /작은 서점/);
+    assert.doesNotMatch(m1.paragraphs.join(" "), /표지/, "text printed on the picture is not body text");
     fs.rmSync(dir, { recursive: true, force: true });
   });
 } else {
@@ -245,6 +256,37 @@ await t("--only <link> --fallback re-imports one handled post as a fallback draf
   fs.rmSync(path.join(tmp, "src/media/cavajournal/캡션-첫-줄"), { recursive: true, force: true });
   await assert.rejects(execFileAsync("node", ["scripts/sync-instagram.mjs", "--mock", vmock, "--only", "https://www.instagram.com/p/NOPE/"],
     { cwd: tmp, encoding: "utf8" }), /Couldn't find the post/);
+});
+
+await t("text slide with a picture: text is live, the picture is cut out with its caption", async () => {
+  const pmock = path.join(tmp, "mock-parts-post.json");
+  fs.writeFileSync(pmock, JSON.stringify({ data: [{
+    id: "1800000000000008", caption: "책 이야기\n\n#morejournal", media_type: "CAROUSEL_ALBUM",
+    permalink: "https://www.instagram.com/p/TEST8/", timestamp: "2026-10-31T09:00:00+0000",
+    children: { data: ["w1", "w2"].map((id) => ({ id, media_type: "IMAGE", media_url: `${base}/i/${id}.jpg` })) },
+  }] }));
+  const analyses = path.join(tmp, "mock-parts.json");
+  fs.writeFileSync(analyses, JSON.stringify({
+    w1: { kind: "image" },
+    w2: { kind: "text", paragraphs: ["위 단락.", "아래 단락."], parts: [
+      { kind: "text", paragraphs: ["위 단락."], note: "" },
+      { kind: "image", box: { left: 100, top: 600, width: 400, height: 500 }, caption: "저자, 《책》, 2026" },
+      { kind: "text", paragraphs: ["아래 단락."], note: "" },
+    ] },
+  }));
+  await execFileAsync("node", ["scripts/sync-instagram.mjs", "--mock", pmock, "--mock-vision", analyses], { cwd: tmp, encoding: "utf8" });
+  const md = fs.readFileSync(path.join(tmp, "src/posts/cavajournal/책-이야기.md"), "utf8");
+  const body = md.slice(md.indexOf('<div class="rte">'));
+  const order = ["01.jpg", "위 단락.", "02-a.jpg", "저자, 《책》, 2026", "아래 단락."].map((x) => body.indexOf(x));
+  assert.ok(order.every((i) => i >= 0), body);
+  assert.deepEqual([...order].sort((a, b) => a - b), order, "reading order kept");
+  assert.match(body, /<figcaption>저자, 《책》, 2026<\/figcaption>/);
+  assert.match(body, /src="\/media\/cavajournal\/책-이야기\/02-a.jpg"/, "cut-out points at the article's folder");
+  assert.doesNotMatch(md, /_incoming/);
+  const dir = path.join(tmp, "src/media/cavajournal/책-이야기");
+  assert.deepEqual(fs.readdirSync(dir).sort(), ["01.jpg", "02-a.jpg"], "whole slide dropped, cut-out kept");
+  const meta = await sharp(path.join(dir, "02-a.jpg")).metadata();
+  assert.deepEqual([meta.width, meta.height], [400, 500]);
 });
 
 await t("site builds with synced posts", () => {

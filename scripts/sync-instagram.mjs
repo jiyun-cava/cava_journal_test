@@ -27,6 +27,7 @@ import {
 } from "./lib/util.mjs";
 import { visionEnabled, analyzeSlide, normalise, slidesToBlocks } from "./lib/vision.mjs";
 import { ocrAvailable, analyzeSlideOcr } from "./lib/ocr.mjs";
+import sharp from "sharp";
 
 const cfg = loadConfig();
 const ig = cfg.instagram;
@@ -198,13 +199,57 @@ function galleryHtml(media, permalink) {
 /* ---------------- slides → article body ---------------- */
 const siteFile = (src) => path.join(ROOT, "src", src.replace(/^\//, ""));
 
+/**
+ * A text slide that also carries pictures (a book cover, a photo, a screenshot)
+ * is split in reading order: its text becomes live text and each picture is cut
+ * out of the slide and kept as an image, with its caption.
+ */
+async function slideParts(media, analysis) {
+  if (!analysis?.parts?.some((p) => p.kind === "image")) return [{ media, analysis: analysis && normalise(analysis) }];
+  const out = [];
+  let k = 0;
+  let note = "";
+  for (const p of analysis.parts) {
+    if (p.kind === "text") {
+      if (!p.paragraphs?.length) { note = [note, p.note].filter(Boolean).join(" / "); continue; }
+      out.push({ media, analysis: normalise({ kind: "text", paragraphs: p.paragraphs, note: [p.note, note].filter(Boolean).join(" / ") }) });
+      note = "";
+    } else {
+      const src = media.src.replace(/(\.\w+)$/, `-${String.fromCharCode(97 + k++)}$1`);
+      const { width, height } = await sharp(siteFile(media.src)).metadata();
+      const box = {
+        left: Math.max(0, Math.round(p.box.left)), top: Math.max(0, Math.round(p.box.top)),
+      };
+      box.width = Math.max(1, Math.min(width - box.left, Math.round(p.box.width)));
+      box.height = Math.max(1, Math.min(height - box.top, Math.round(p.box.height)));
+      await sharp(siteFile(media.src)).extract(box).jpeg({ quality: 88 }).toFile(siteFile(src));
+      // Shown at the size it had on the slide, not stretched to the full column.
+      const scale = Math.min(1, Math.max(0.2, box.width / width));
+      out.push({ media: { type: "image", src, scale }, caption: p.caption || "", analysis: normalise({ kind: "image" }) });
+    }
+  }
+  if (note) {
+    const lastText = [...out].reverse().find((x) => x.analysis.kind === "text");
+    if (lastText) lastText.analysis.note = [lastText.analysis.note, note].filter(Boolean).join(" / ");
+  }
+  if (out.length) out[0].analysis.issue = normalise(analysis).issue;
+  return out;
+}
+
 function mediaHtml(m, permalink) {
   return galleryHtml([m], permalink).replace(/^<div class="ig-gallery">\n|\n<\/div>$/g, "");
 }
 
 function blocksHtml(blocks, permalink) {
   return blocks.map((b) => {
-    if (b.type === "media") return `<div class="ig-gallery">${mediaHtml(b.media, permalink)}</div>`;
+    if (b.type === "media") {
+      let fig = mediaHtml(b.media, permalink);
+      if (b.caption) fig = fig.replace(/<\/figure>$/, `<figcaption>${escapeHtml(b.caption)}</figcaption></figure>`);
+      if (b.media.scale && b.media.scale < 0.95) {
+        return `<div class="ig-gallery ig-cutout">${fig.replace(/^<figure>/, `<figure style="width:${Math.round(b.media.scale * 100)}%">`)}</div>`;
+      }
+      return `<div class="ig-gallery">${fig}</div>`;
+    }
     if (b.type === "placeholder") return `<!-- EDITOR: 본문을 여기에 붙여 넣으세요. Paste the article text here. -->\n<p class="needs-text">본문 준비 중</p>`;
     const paras = b.paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`);
     const notes = b.notes.map((n) => `<p class="slide-note">${escapeHtml(n)}</p>`);
@@ -226,7 +271,7 @@ function reviewMarkdown({ title, journal, file, permalink, mode, blocks, rawBase
     "",
   ];
   for (const b of blocks) {
-    if (b.type === "media") lines.push(b.media.type === "image" ? img(b.media.src) : `▶ video${b.media.poster ? " " + img(b.media.poster) : ""}`, "");
+    if (b.type === "media") lines.push(b.media.type === "image" ? img(b.media.src) : `▶ video${b.media.poster ? " " + img(b.media.poster) : ""}`, ...(b.caption ? [`<sub>${escapeHtml(b.caption)}</sub>`] : []), "");
     else if (b.type === "placeholder") lines.push("_(본문 준비 중)_", "");
     else lines.push(...b.paragraphs.map((p) => `> ${p}\n>`), ...b.notes.map((n) => `> _${n}_`), "");
   }
@@ -321,7 +366,7 @@ async function main() {
             console.log(`      slide ${i + 1}: ${analysis?.kind || "image"}${analysis?.kind === "text" ? ` (${analysis.paragraphs.length} paragraphs)` : ""}`);
           }
           if (analysis?.uncertain) warnings.push(`Slide ${i + 1}: some words may be misread. Check this slide's text closely.`);
-          slides.push({ media: s, analysis: analysis && normalise(analysis) });
+          slides.push(...await slideParts(s, analysis));
         }
         const titleSlide = slides.find((s) => s.analysis?.kind === "title")?.analysis;
         if (titleSlide?.title) {
@@ -360,7 +405,7 @@ async function main() {
     fs.rmSync(to, { recursive: true, force: true });
     if (fs.existsSync(from)) fs.renameSync(from, to);
     const fix = (src) => src && src.replace(`/${tmpHandle}/`, `/${handle}/`);
-    for (const s of saved) { s.src = fix(s.src); s.poster = fix(s.poster); }
+    for (const s of [...saved, ...blocks.filter((b) => b.type === "media").map((b) => b.media)]) { s.src = fix(s.src); s.poster = fix(s.poster); }
     // Drop the image files of text slides: on the site they are live text.
     const used = new Set(blocks.filter((b) => b.type === "media").flatMap((b) => [b.media.src, b.media.poster]).filter(Boolean));
     for (const s of saved) for (const src of [s.src, s.poster]) if (src && !used.has(src)) fs.rmSync(siteFile(src), { force: true });

@@ -129,7 +129,7 @@ export function slidesToBlocks(slides) {
         blocks.push({ type: "text", paragraphs: paras, notes: a.note ? [a.note] : [] });
       }
     } else {
-      blocks.push({ type: "media", media: s.media, role: a?.kind === "title" ? "title" : "image" });
+      blocks.push({ type: "media", media: s.media, role: a?.kind === "title" ? "title" : "image", caption: s.caption || "" });
     }
   }
   return blocks;
