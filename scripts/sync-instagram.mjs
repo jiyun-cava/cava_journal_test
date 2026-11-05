@@ -26,6 +26,7 @@ import {
   saveImage, download, toSiteUrl, excerpt,
 } from "./lib/util.mjs";
 import { visionEnabled, analyzeSlide, normalise, slidesToBlocks } from "./lib/vision.mjs";
+import { ocrAvailable, analyzeSlideOcr } from "./lib/ocr.mjs";
 
 const cfg = loadConfig();
 const ig = cfg.instagram;
@@ -253,8 +254,16 @@ async function main() {
   if (requiredTag) routing.add(requiredTag);
   const maxBytes = (ig.maxVideoMB || 60) * 1024 * 1024;
 
-  const useVision = ig.splitSlides !== false && (visionEnabled() || MOCK_VISION);
+  // Slide reader: "tesseract" (free, default) or "claude" (paid, needs ANTHROPIC_API_KEY).
+  const reader = MOCK_VISION ? "mock"
+    : ig.splitSlides === false ? null
+    : (ig.reader || "tesseract") === "claude" ? (visionEnabled() ? "claude" : null)
+    : (ocrAvailable() ? "tesseract" : null);
+  const useVision = Boolean(reader);
   const visionModel = ig.visionModel || "claude-sonnet-5-5";
+  if (ig.splitSlides !== false && !reader) {
+    console.warn(`  ! slide reader "${ig.reader || "tesseract"}" is not available; new posts arrive as drafts with the first image only.`);
+  }
   const rawBase = process.env.REVIEW_RAW_BASE || "";
   const reports = [];
   const titles = [];
@@ -289,9 +298,12 @@ async function main() {
         for (const [i, s] of saved.entries()) {
           let analysis = null;
           if (s.type === "image") {
-            analysis = MOCK_VISION ? MOCK_VISION[items[i]?.id] || null : await analyzeSlide(siteFile(s.src), { model: visionModel });
+            analysis = reader === "mock" ? MOCK_VISION[items[i]?.id] || null
+              : reader === "claude" ? await analyzeSlide(siteFile(s.src), { model: visionModel })
+              : await analyzeSlideOcr(siteFile(s.src));
             console.log(`      slide ${i + 1}: ${analysis?.kind || "image"}${analysis?.kind === "text" ? ` (${analysis.paragraphs.length} paragraphs)` : ""}`);
           }
+          if (analysis?.uncertain) warnings.push(`Slide ${i + 1}: some words may be misread. Check this slide's text closely.`);
           slides.push({ media: s, analysis: analysis && normalise(analysis) });
         }
         const titleSlide = slides.find((s) => s.analysis?.kind === "title")?.analysis;
@@ -313,7 +325,7 @@ async function main() {
     if (mode === "manual") {
       const first = saved.find((s) => s.type === "image") || saved[0];
       blocks = [...(first ? [{ type: "media", media: first }] : []), { type: "placeholder" }];
-      if (!useVision) warnings.push("Automatic transcription is off (no ANTHROPIC_API_KEY secret).");
+      if (!useVision) warnings.push("Automatic transcription is off or unavailable, so only the first image was imported.");
     }
 
     if (migrated.has(handleize(title))) {

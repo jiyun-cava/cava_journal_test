@@ -129,12 +129,12 @@ If it ever lapses, generate a new token (step 4.3) and replace the secret.
 
 Every new post goes through these steps:
 
-1. **Read each slide (needs the `ANTHROPIC_API_KEY` secret).** Claude looks at every carousel image in order and sorts it:
+1. **Read each slide (free).** Tesseract, a free open-source text reader with a Korean model, runs inside GitHub's robot and looks at every carousel image in order:
    - **Photo or artwork slide:** kept as an image.
-   - **Title slide** (title + handwritten signature): kept as an image. The article title becomes `작가 — 제목`.
+   - **Title slide** (title + handwritten signature): kept as an image. The title comes from the caption's first line.
    - **Text slide:** transcribed into live text. The slide image is not kept. A sentence cut off at the end of one slide is joined with the next. Source lines like `← 출처: …` become small notes.
    - **Issue number** next to the CAVA *journal* wordmark is saved as `issue`.
-2. **Fallback when there's no API key, or reading fails:** only the first image is imported, plus a "본문 준비 중" placeholder for an editor to replace with the text.
+2. **Fallback when reading fails:** only the first image is imported, plus a "본문 준비 중" placeholder for an editor to replace with the text.
 3. **Review.** With `"review": "pull-request"` (the default), each batch of new posts opens a pull request. Its description shows the full article: images, then the transcribed text in order. An editor checks it against the post and fixes text in **Files changed → ⋯ → Edit file**. **Merge** publishes; **Close** discards.
 
 The caption is kept under the article. Its first line is the title when there's no title slide.
@@ -145,11 +145,12 @@ The caption is kept under the article. Its first line is the title when there's 
 #nowjournal                         ← chooses the journal
 ```
 
-#### Turning on slide reading
+#### Slide reading: free by default
 
-1. Create an API key at [console.anthropic.com](https://console.anthropic.com) → **API keys**, and add a little credit under **Billing**. Each post costs one small image request per slide.
-2. Add it as a repository secret named `ANTHROPIC_API_KEY`.
-3. In **Settings → Actions → General → Workflow permissions**, tick **Allow GitHub Actions to create and approve pull requests**. Without it, the review pull request can't be opened.
+- Nothing to set up: the reader installs itself on every run.
+- It reads typeset Korean well but can misread rarer syllables. Slides it is unsure about are flagged in the pull request ("some words may be misread"), so proofread those first.
+- Optional, paid: set `"reader": "claude"` and add an `ANTHROPIC_API_KEY` secret for more accurate reading, including the title and handwritten name on the title slide.
+- In **Settings → Actions → General → Workflow permissions**, tick **Allow GitHub Actions to create and approve pull requests**. Without it, the review pull request can't be opened.
 
 Settings in `site.config.json → instagram`:
 
@@ -164,6 +165,7 @@ Settings in `site.config.json → instagram`:
 | `maxVideoMB` | Larger videos show the poster frame linking to Instagram instead |
 | `review` | `"pull-request"`: new posts wait for an editor to merge. `"publish"`: they go live straight away |
 | `splitSlides` | `false` turns slide reading off (every post arrives as "first image + text needed") |
+| `reader` | `"tesseract"` (free, default) or `"claude"` (paid, needs `ANTHROPIC_API_KEY`) |
 | `visionModel` | Claude model used to read slides |
 | `includeCaption` | `false` leaves the Instagram caption off the article |
 

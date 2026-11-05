@@ -14,6 +14,7 @@ import { handleize, ROOT } from "../scripts/lib/util.mjs";
 import { parseCaption } from "../scripts/sync-instagram.mjs";
 import { parseAtom, parseListing, parseArticlePage } from "../scripts/import-shopify.mjs";
 import { slidesToBlocks, normalise, parseJsonReply, endsMidSentence } from "../scripts/lib/vision.mjs";
+import { tsvToLines, linesToParagraphs, mergeText, ocrAvailable, analyzeSlideOcr } from "../scripts/lib/ocr.mjs";
 
 let passed = 0;
 const t = (name, fn) => Promise.resolve(fn()).then(() => { passed++; console.log("  ✓", name); });
@@ -86,6 +87,52 @@ await t("vision: slides become blocks; split sentences are joined", () => {
   assert.deepEqual(blocks[2].notes, ["출처: 테스트"]);
 });
 
+await t("ocr: lines → paragraphs, notes, furniture, issue number", () => {
+  const head = "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext";
+  const w = (b, l, top, conf, text) => `5\t1\t${b}\t1\t${l}\t1\t90\t${top}\t500\t40\t${conf}\t${text}`;
+  const tsv = [head, w(1,1,200,95,"첫 줄"), w(1,2,268,95,"둘째 줄."), w(2,1,404,90,"새 단락"), w(3,1,1240,92,"< 출처: 어딘가"), w(4,1,1290,96,"183 CAVA journal"), w(5,1,600,10,"noise")].join("\n");
+  const lines = mergeText(tsvToLines(tsv), "첫 줄\n둘째 줄.\n새 단락\nnoise\n< 출처: 어딘가\n183 CAVA journal\n");
+  const r = linesToParagraphs(lines);
+  assert.deepEqual(r.paragraphs, ["첫 줄 둘째 줄.", "새 단락"]);
+  assert.deepEqual(r.notes, ["← 출처: 어딘가"]);
+  assert.equal(r.shaky, false);
+  const split = linesToParagraphs([
+    { text: "창문을 Sct,", top: 208, bottom: 283, conf: 89 },
+    { text: "Ti 으뜨르 ㄱㄴㄷ", top: 242, bottom: 272, conf: 57 },
+    { text: "다음 줄", top: 296, bottom: 331, conf: 93 },
+  ]);
+  assert.equal(split.paragraphs.length, 1, "pieces of one row are merged");
+  assert.equal(split.shaky, true, "misread flagged");
+  assert.equal(r.issue, 183);
+});
+
+await t("ocr: spaces Tesseract put inside Korean words are removed when lines can't be matched", () => {
+  const lines = [{ text: "가 게 의 문 을", top: 1, bottom: 2, conf: 90 }];
+  assert.equal(mergeText(lines, "")[0].text, "가게의문을");
+});
+
+if (ocrAvailable()) {
+  await t("ocr: real slides (Tesseract installed)", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ocr-test-"));
+    const svg = (body) => Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350"><rect width="1080" height="1350" fill="#fff"/>${body}</svg>`);
+    const line = (y, s, size = 38) => `<text x="90" y="${y}" font-family="Noto Sans CJK KR" font-size="${size}" fill="#111">${s}</text>`;
+    await sharp(svg([line(260,"작은 서점의 주인은 아침마다 창문을 닦는다."), line(328,"손님이 오기 전에 먼저 거리를 바라본다."), line(464,"그 가게는 올해로 열 해째 같은 자리에 있다."), line(1300,"183 CAVA journal", 26)].join(""))).jpeg().toFile(path.join(dir, "t.jpg"));
+    const noise = Buffer.alloc(1080 * 1350 * 3).map(() => Math.random() * 255);
+    await sharp(noise, { raw: { width: 1080, height: 1350, channels: 3 } }).jpeg().toFile(path.join(dir, "p.jpg"));
+    const t1 = await analyzeSlideOcr(path.join(dir, "t.jpg"));
+    assert.equal(t1.kind, "text");
+    assert.equal(t1.paragraphs.length, 2, JSON.stringify(t1.paragraphs));
+    assert.match(t1.paragraphs[0], /작은 서점의 주인은/);
+    assert.match(t1.paragraphs[0], /손님이 오기 전에/, "first two lines are one paragraph");
+    assert.match(t1.paragraphs[1], /^그 가게는/);
+    assert.equal(t1.issue, 183);
+    assert.equal((await analyzeSlideOcr(path.join(dir, "p.jpg"))).kind, "image");
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+} else {
+  console.log("  – ocr: real slides skipped (Tesseract with Korean not installed)");
+}
+
 /* ---- full sync in a temp copy ---- */
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "cava-test-"));
 for (const p of ["site.config.json", "package.json", "eleventy.config.js", "scripts", "src"]) {
@@ -109,8 +156,9 @@ fs.writeFileSync(mockFile, JSON.stringify(mock));
 // a migrated Shopify article whose title matches an Instagram post
 fs.writeFileSync(path.join(tmp, "src/posts/cavajournal/이미-있는-글.md"), '---\ntitle: "이미 있는 글"\ndate: "2026-10-01T00:00:00+09:00"\nsource: "shopify"\n---\n<div class="rte"><p>x</p></div>\n');
 
+const noOcr = { ...process.env, TESSDATA_PREFIX: path.join(tmp, "no-ocr-data") };
 const run = async (...a) =>
-  (await execFileAsync("node", ["scripts/sync-instagram.mjs", "--mock", mockFile, ...a], { cwd: tmp, encoding: "utf8" })).stdout;
+  (await execFileAsync("node", ["scripts/sync-instagram.mjs", "--mock", mockFile, ...a], { cwd: tmp, encoding: "utf8", env: noOcr })).stdout;
 
 await t("sync creates articles, routes by hashtag, skips old & #notjournal", async () => {
   const out = await run();

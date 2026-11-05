@@ -49,6 +49,7 @@
     "maxVideoMB": 60,
     "review": "pull-request",
     "splitSlides": true,
+    "reader": "tesseract",
     "visionModel": "claude-sonnet-5-5",
     "includeCaption": true
   }
