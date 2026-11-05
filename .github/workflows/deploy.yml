@@ -112,6 +112,9 @@ jobs:
           git checkout -b "$BRANCH"
           git add src/posts src/media
           git commit -m "Instagram: ${{ steps.sync.outputs.titles }}"
+          # Start the branch from the latest main (it may have moved during a long run).
+          git fetch -q origin main
+          git rebase -q --autostash origin/main
           git push origin "$BRANCH"
           {
             echo "New Instagram post(s) are ready for review."
