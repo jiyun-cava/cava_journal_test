@@ -1,0 +1,52 @@
+# Connect Instagram without the App Dashboard's "Generate token" button.
+# 1. Open the Instagram login link (README › Connect Instagram), log in as the account.
+# 2. Copy the address you land on (it contains ?code=...).
+# 3. Actions → "Connect Instagram" → Run workflow → paste it.
+# The token is saved as the INSTAGRAM_ACCESS_TOKEN secret; it is never shown.
+name: Connect Instagram
+
+on:
+  workflow_dispatch:
+    inputs:
+      code:
+        description: "The address you landed on after logging in (or just the code). Works once, within 1 hour."
+        required: true
+      redirect_uri:
+        description: "Redirect URI used in the login link (leave as is unless you changed it)"
+        required: true
+        default: "https://jiyun-cava.github.io/cava_journal_test/"
+
+jobs:
+  connect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hide the code in logs
+        env:
+          CODE: ${{ inputs.code }}
+        run: echo "::add-mask::$CODE"
+
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Exchange the code for a 60-day token
+        id: token
+        env:
+          INSTAGRAM_APP_ID: ${{ secrets.INSTAGRAM_APP_ID }}
+          INSTAGRAM_APP_SECRET: ${{ secrets.INSTAGRAM_APP_SECRET }}
+          CODE: ${{ inputs.code }}
+          REDIRECT_URI: ${{ inputs.redirect_uri }}
+        run: node scripts/instagram-connect.mjs "$CODE" "$REDIRECT_URI"
+
+      - name: Save it as the INSTAGRAM_ACCESS_TOKEN secret
+        env:
+          GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
+          NEW_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::GH_SECRETS_TOKEN secret is missing, so the token could not be saved. See README › Token refresh."
+            exit 1
+          fi
+          printf '%s' "$NEW_TOKEN" | gh secret set INSTAGRAM_ACCESS_TOKEN --repo "${{ github.repository }}"
+          echo "Saved. Connected as @${{ steps.token.outputs.username }}."

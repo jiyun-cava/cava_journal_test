@@ -82,6 +82,23 @@ The account must be a **Business or Creator** account.
 
 The app can stay in development mode — it only reads your own account.
 
+### Connect Instagram if "Generate token" fails
+
+The App Dashboard's **Generate token** button sometimes fails with "Could not
+connect". This route gives the same token through Instagram's own login page.
+
+1. On **Instagram API → API setup with Unified login**, find **Instagram app ID**
+   and **Instagram app secret** (not the Meta app ID). Save them as repository
+   secrets `INSTAGRAM_APP_ID` and `INSTAGRAM_APP_SECRET`. The `GH_SECRETS_TOKEN`
+   secret (below) must also exist.
+2. In **Set up Instagram business login → Business login settings**, add
+   `https://jiyun-cava.github.io/cava_journal_test/` under **OAuth redirect URIs** and save.
+3. Copy the **Embed URL** from the same section and open it in a browser. Log in
+   as @cava.life and allow access.
+4. You land on the site with `?code=…` in the address bar. Copy the whole address.
+5. **Actions → Connect Instagram → Run workflow**, paste it, run. Within an hour,
+   the code works once. The token is saved as `INSTAGRAM_ACCESS_TOKEN` and never shown.
+
 ### Token refresh (so it never expires)
 
 `refresh-token.yml` renews the token every Monday and saves it back into the
