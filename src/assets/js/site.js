@@ -6,7 +6,7 @@
   var cols = 0;
   function count() {
     var w = window.innerWidth;
-    return w >= 1300 ? 5 : w >= 1000 ? 4 : w >= 720 ? 3 : 2;
+    return w >= 1000 ? 4 : w >= 720 ? 3 : 2;
   }
   function ratio(t) {
     var m = (t.style.getPropertyValue("--r") || "4 / 5").split("/");

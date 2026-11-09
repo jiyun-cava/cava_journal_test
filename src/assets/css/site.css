@@ -55,7 +55,7 @@ main { min-height: 60vh; }
 main { padding-top: calc(var(--top) + var(--logo-w) * .62 + clamp(20px, 3vw, 36px)); padding-bottom: clamp(64px, 8vw, 96px); }
 
 /* ---------- Home: every article's cover, in a masonry wall ---------- */
-.wall { list-style: none; margin: 0; padding: 0 var(--gutter); columns: 5 220px; column-gap: clamp(12px, 2vw, 28px); }
+.wall { list-style: none; margin: 0; padding: 0 var(--gutter); columns: 4 220px; column-gap: clamp(12px, 2vw, 28px); }
 .wall.is-laid { columns: auto; display: flex; align-items: flex-start; gap: clamp(12px, 2vw, 28px); }
 .wall__col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: clamp(12px, 2vw, 28px); }
 .tile { break-inside: avoid; margin: 0 0 clamp(12px, 2vw, 28px); }
