@@ -292,7 +292,7 @@ await t("text slide with a picture: text is live, the picture is cut out with it
   assert.deepEqual([meta.width, meta.height], [400, 500]);
 });
 
-for (const [label, folder] of [["text", "manuscripts"], ["Google Doc HTML", "manuscripts-gdoc"]])
+for (const [label, folder] of [["text", "manuscripts"], ["Google Doc HTML", "manuscripts-gdoc"], ["Word, no version headings", "manuscripts-docx"]])
 await t(`manuscript (${label}): its text, the carousel's pictures in place, captions from the manuscript`, async () => {
   for (const d of ["src/posts/cavajournal", "src/media/cavajournal"]) {
     for (const f of fs.readdirSync(path.join(tmp, d))) if (f.startsWith("지혜진")) fs.rmSync(path.join(tmp, d, f), { recursive: true, force: true });
@@ -343,7 +343,8 @@ await t(`manuscript (${label}): its text, the carousel's pictures in place, capt
   assert.ok(!body.includes("/01.jpg"), "cover not repeated");
   // Approved text: published straight away, not sent for review.
   assert.match(out, /publishes now/);
-  assert.match(out, /used "1안"/);
+  if (folder !== "manuscripts-docx") assert.match(out, /used "1안"/);
+  else assert.match(out, /aren't on the slides and were left out/, "2안 after the article is left out");
   assert.ok(!fs.existsSync(report), "no review report");
   assert.deepEqual(fs.readFileSync(publishList, "utf8").trim().split("\n"),
     ["src/posts/cavajournal/지혜진-임시의-우리-아트페어-만들기-실전편.md", "src/media/cavajournal/지혜진-임시의-우리-아트페어-만들기-실전편"]);

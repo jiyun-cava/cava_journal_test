@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { parse as parseHtml } from "node-html-parser";
+import { docxToManuscript } from "./docx.mjs";
 
 // Build an article from the approved manuscript, using the Instagram carousel
 // only for its pictures and their order.
@@ -48,6 +49,7 @@ export function parseManuscript(text, comments = []) {
     if (current.bio) { bio = [bio, line].filter(Boolean).join(" "); continue; }
     const bold = line.match(/^\*\*(.+)\*\*$/);
     if (bold && !current.title && !current.blocks.length) { current.title = bold[1].trim(); continue; }
+    if (bold) { current.blocks.push({ type: "p", text: bold[1].trim(), soft: false }); continue; }
     const num = line.match(/^(\d{1,2})[.)]\s+(.+)$/);
     if (num) { current.blocks.push({ type: "heading", n: Number(num[1]), text: num[2].trim() }); continue; }
     // A line ending in two spaces continues on the next line (soft line break).
@@ -118,13 +120,63 @@ export function assemble(manuscript, slides) {
 
   const captions = manuscript.images.map((im, i) => ({ i, text: im.caption, g: grams(im.caption), used: false })).filter((c) => c.text);
   const titleG = grams(manuscript.title || "");
-  const bioG = grams(manuscript.bio || "");
+
+  // 2) Which stretch of the manuscript the slides show. A Doc may also hold other
+  //    versions, notes or the bio without headings: keep the run of paragraphs the
+  //    slides follow in order, and take the bio from the author slide.
+  const bestBlock = (l) => {
+    const g = grams(l.text);
+    let best = -1, bestS = 0;
+    blockGrams.forEach((bg, k) => { const sc = contained(g, bg); if (sc > bestS) { best = k; bestS = sc; } });
+    return bestS >= MATCH && norm(l.text).length >= 4 ? best : -1;
+  };
+  const seq = [];
+  slides.forEach((s, si) => (s.layout?.lines || []).filter(lineOk).forEach((l) => {
+    if (si === 0 && titleG.size && contained(grams(l.text), titleG) >= 0.7) return;
+    const k = bestBlock(l);
+    if (k >= 0) seq.push({ si, l, k });
+  }));
+  let bioText = manuscript.bio || "";
+  let bioBlocks = new Set();
+  if (!bioText && seq.length) {
+    // The last slide with matched text, if it's a short "name + bio" slide after the article.
+    const lastSi = seq[seq.length - 1].si;
+    const here = seq.filter((x) => x.si === lastSi);
+    const before = seq.filter((x) => x.si < lastSi).map((x) => x.k);
+    const L = slides[lastSi].layout;
+    const firstTop = Math.min(...here.map((x) => x.l.top));
+    const nameAbove = L.lines.filter(lineOk).some((l) => l.top < firstTop && norm(l.text).length >= 2 && norm(l.text).length <= 12 && bestBlock(l) < 0);
+    const ks = [...new Set(here.map((x) => x.k))];
+    if (nameAbove && ks.length <= 2 && here.length <= 4 && !L.pictures.length && before.length && Math.min(...ks) > Math.max(...before)) {
+      bioBlocks = new Set(ks);
+      bioText = ks.sort((a, b) => a - b).map((k) => version.blocks[k].text).join(" ");
+    }
+  }
+  // Longest run of matches in carousel order (outliers: lines also found in another version).
+  const body = seq.filter((x) => !bioBlocks.has(x.k));
+  const len = body.map(() => 1), prev = body.map(() => -1);
+  for (let i = 0; i < body.length; i++) for (let j = 0; j < i; j++) {
+    if (body[j].k <= body[i].k && len[j] + 1 > len[i]) { len[i] = len[j] + 1; prev[i] = j; }
+  }
+  let lo = 0, hi = version.blocks.length - 1;
+  if (body.length) {
+    let i = len.indexOf(Math.max(...len));
+    const ks = [];
+    for (; i >= 0; i = prev[i]) ks.push(body[i].k);
+    lo = Math.min(...ks); hi = Math.max(...ks);
+    if (lo <= 1) lo = 0; // the opening paragraphs are the article's even if a slide wasn't read
+    const left = version.blocks.length - 1 - hi - [...bioBlocks].filter((k) => k > hi).length;
+    if (left > 0) warnings.push(`${left} paragraph(s) at the end of the manuscript aren't on the slides and were left out (another version or notes?). Check the article ends where the post does.`);
+    if (lo > 0) warnings.push(`${lo} paragraph(s) at the start of the manuscript aren't on the slides and were left out.`);
+  }
+  const bioG = grams(bioText);
 
   const out = [];
-  let cursor = -1; // last manuscript block placed
+  let cursor = lo - 1; // last manuscript block placed
   const emitUpTo = (idx) => {
     for (let k = cursor + 1; k <= idx; k++) {
       const b = version.blocks[k];
+      if (bioBlocks.has(k)) continue;
       if (b.type === "heading") out.push({ type: "heading", text: b.text });
       else {
         const prev = out[out.length - 1];
@@ -138,6 +190,7 @@ export function assemble(manuscript, slides) {
     const g = grams(l.text);
     let best = -1, bestS = 0;
     blockGrams.forEach((bg, k) => {
+      if (k < lo || k > hi || bioBlocks.has(k)) return;
       const s = contained(g, bg) + (k > cursor ? 0.05 : 0); // prefer what comes next
       if (s > bestS) { best = k; bestS = s; }
     });
@@ -240,7 +293,7 @@ export function assemble(manuscript, slides) {
       }
     }
   });
-  emitUpTo(version.blocks.length - 1);
+  emitUpTo(hi);
 
   // Pictures whose caption couldn't be read: give them the manuscript's unused captions in order,
   // when the count between two placed captions matches.
@@ -268,7 +321,7 @@ export function assemble(manuscript, slides) {
   for (const b of pictures) if (b.captionFromSlide) warnings.push(`A caption was read from the slide, not the manuscript ("${b.caption.slice(0, 50)}…"). Check its spelling.`);
 
   if (knownAuthor) author = knownAuthor; // the manuscript's folder name beats reading it off a slide
-  if (manuscript.bio) out.push({ type: "bio", name: author, text: manuscript.bio });
+  if (bioText) out.push({ type: "bio", name: author, text: bioText });
   if (!author) warnings.push("The author's name wasn't found on the slides. Add it to the title and the bio.");
   const title = author ? `${author} — ${manuscript.title}` : manuscript.title;
   return { title, author, blocks: out, warnings, cover, version: version.name };
@@ -284,12 +337,16 @@ export function loadManuscripts(dir) {
   if (!dir || !fs.existsSync(dir)) return [];
   const out = [];
   for (const f of fs.readdirSync(dir).sort()) {
-    if (!/\.(md|txt|html?)$/i.test(f) || /^readme/i.test(f)) continue;
-    const base = path.join(dir, f.replace(/\.(md|txt|html?)$/i, ""));
+    if (!/\.(md|txt|html?|docx)$/i.test(f) || /^readme/i.test(f)) continue;
+    const base = path.join(dir, f.replace(/\.(md|txt|html?|docx)$/i, ""));
     try {
-      let text = fs.readFileSync(path.join(dir, f), "utf8");
-      let comments = fs.existsSync(`${base}.comments.json`) ? JSON.parse(fs.readFileSync(`${base}.comments.json`, "utf8")) : [];
-      if (/\.html?$/i.test(f)) ({ text, comments } = googleDocHtmlToManuscript(text));
+      let text, comments;
+      if (/\.docx$/i.test(f)) ({ text, comments } = docxToManuscript(fs.readFileSync(path.join(dir, f))));
+      else {
+        text = fs.readFileSync(path.join(dir, f), "utf8");
+        comments = fs.existsSync(`${base}.comments.json`) ? JSON.parse(fs.readFileSync(`${base}.comments.json`, "utf8")) : [];
+        if (/\.html?$/i.test(f)) ({ text, comments } = googleDocHtmlToManuscript(text));
+      }
       const m = parseManuscript(text, comments);
       const meta = fs.existsSync(`${base}.json`) ? JSON.parse(fs.readFileSync(`${base}.json`, "utf8")) : {};
       if (meta.author) m.author = meta.author;
