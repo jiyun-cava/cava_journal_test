@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import crypto from "node:crypto";
 import path from "node:path";
 import { parse as parseHtml } from "node-html-parser";
 import { docxToManuscript } from "./docx.mjs";
@@ -352,6 +353,8 @@ export function loadManuscripts(dir) {
       if (meta.author) m.author = meta.author;
       if (meta.title && !m.title) m.title = meta.title;
       m.titles = [m.title, meta.title, meta.postTitle].filter(Boolean);
+      // Changes when the manuscript (or its author/title) changes: the article is then rebuilt.
+      m.hash = crypto.createHash("sha1").update(JSON.stringify([text, comments, meta.author || "", meta.postTitle || ""])).digest("hex").slice(0, 12);
       out.push({ ...m, file: path.relative(process.cwd(), path.join(dir, f)) });
     } catch (e) {
       console.warn(`  ! manuscript ${f} couldn't be read: ${e.message}`);

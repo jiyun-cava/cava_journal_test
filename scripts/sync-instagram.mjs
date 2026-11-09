@@ -369,25 +369,27 @@ async function main() {
   };
 
   // A post imported before its manuscript was in: rebuild it from the manuscript once.
-  state.manuscript = state.manuscript || [];
+  // state.manuscriptBuilt: post id → the manuscript version its article was built from.
+  state.manuscriptBuilt = state.manuscriptBuilt || {};
+  for (const id of state.manuscript || []) state.manuscriptBuilt[id] = state.manuscriptBuilt[id] || "(earlier)";
+  delete state.manuscript;
   state.manuscriptTried = state.manuscriptTried || {};
-  const builtFromManuscript = new Set(state.manuscript.map(String));
   const manuscriptName = (m) => {
     const texts = [parseCaption(m.caption || "").title, m.caption || ""];
     const local = findManuscript(manuscripts, texts);
-    if (local) return local.file;
+    if (local) return `${local.file}#${local.hash || ""}`;
     const doc = driveDocs.find((d) => titleScore(d.name, texts) >= 0.85);
     return doc ? `drive:${doc.id}:${doc.modifiedTime}` : null;
   };
   const redo = new Set();
   for (const m of media) {
     const id = String(m.id);
-    if (ONLY || !known.has(id) || builtFromManuscript.has(id)) continue;
+    if (ONLY || !known.has(id)) continue;
     if (cutoff && new Date(m.timestamp) < cutoff) continue;
     const name = manuscriptName(m);
-    if (name && state.manuscriptTried[id] !== name) redo.add(id);
+    if (name && state.manuscriptBuilt[id] !== name && state.manuscriptTried[id] !== name) redo.add(id);
   }
-  if (redo.size) console.log(`${redo.size} imported post(s) now have a manuscript: rebuilding them.`);
+  if (redo.size) console.log(`${redo.size} imported post(s) have a new or updated manuscript: rebuilding them.`);
 
   const fresh = media
     .filter((m) => ONLY ? matchesOnly(m) : !known.has(String(m.id)) || redo.has(String(m.id)))
@@ -590,7 +592,7 @@ async function main() {
     state.seen.push(m.id);
     created++;
     // Built from the approved manuscript: published as soon as the post is up (unless set to review).
-    if (mode === "manuscript") state.manuscript.push(String(m.id));
+    if (mode === "manuscript") state.manuscriptBuilt[String(m.id)] = manuscriptName(m);
     if (mode === "manuscript" && (ig.manuscriptReview || "publish") === "publish") {
       published.push({ title, paths: [file, path.join(MEDIA_DIR, journal, handle), ...replaced] });
       console.log(`      → publishes now (approved manuscript)${warnings.length ? `; notes: ${warnings.join(" | ")}` : ""}`);

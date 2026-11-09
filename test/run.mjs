@@ -366,13 +366,13 @@ await t("a post imported before its manuscript is rebuilt once the manuscript is
   const old = path.join(tmp, "src/posts/cavajournal/임시의-우리-아트페어-만들기-실전편.md");
   fs.writeFileSync(old, '---\ntitle: "임시의 우리: 아트페어 만들기 실전편"\ndate: "2026-10-13T10:00:00+0000"\nsource: "instagram"\ninstagram_id: "1800000000000009"\n---\n<p>OCR text</p>\n');
   state.seen = [...new Set([...state.seen, "1800000000000009"])];
-  state.manuscript = (state.manuscript || []).filter((x) => x !== "1800000000000009");
+  delete (state.manuscriptBuilt || {})["1800000000000009"];
   fs.writeFileSync(st, JSON.stringify(state));
   const run = async () => (await execFileAsync("node", ["scripts/sync-instagram.mjs", "--mock", path.join(tmp, "mock-imsi.json"),
     "--mock-layout", path.join(ROOT, "test/fixtures/manuscripts/layout-imsi.json"), "--manuscripts", path.join(ROOT, "test/fixtures/manuscripts")],
     { cwd: tmp, encoding: "utf8" })).stdout;
   const out = await run();
-  assert.match(out, /now have a manuscript: rebuilding/);
+  assert.match(out, /have a new or updated manuscript: rebuilding/);
   assert.ok(!fs.existsSync(old), "the earlier article is replaced");
   assert.ok(fs.existsSync(path.join(tmp, "src/posts/cavajournal/지혜진-임시의-우리-아트페어-만들기-실전편.md")));
   assert.match(await run(), /No new Instagram posts/, "rebuilt only once");
