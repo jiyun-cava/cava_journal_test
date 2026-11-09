@@ -1,14 +1,15 @@
 # Manuscripts
 
-Approved manuscripts, one per post, saved here automatically from the CAVA
-journal manuscript Sheet. When the matching post appears on @cava.life, the
-sync builds the article from the manuscript (text, subheadings, bio, image
+Approved manuscripts, one per post, copied here from the Google Drive
+manuscripts folder (`2026 / N월 / 필자 / 원고`) by a scheduled Claude task.
+When the matching post appears on @cava.life, or if it already has, the sync
+builds the article from the manuscript (text, subheadings, bio, image
 captions) with the post's pictures in carousel order, and publishes it.
 
-- `<title>.md`: the Google Doc's text (as read with its comments).
-- `<title>.comments.json`: the Doc's comments, `[{ "id", "text" }]`; comments on
-  images are their captions.
-- Optional `<title>.json`: `{ "author": "지혜진", "doc": "<Google Doc link>" }`.
-
-The post is matched by title: the manuscript's title must be the first line of
-the Instagram caption.
+Per manuscript, any of:
+- `<title>.md` + `<title>.comments.json`: the Google Doc as read with its
+  comments (`[{ "id", "text" }]`; comments on images are their captions).
+- `<title>.docx`: the Doc downloaded as Word (images removed to keep it small).
+- `<title>.json`: `{ "docId", "title", "author", "modified", "postTitle" }`.
+  `author` is the name of the Doc's folder. Set `postTitle` when the Doc's
+  name differs from the post's title (the first line of its caption).

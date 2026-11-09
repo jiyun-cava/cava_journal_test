@@ -245,8 +245,13 @@ await t("vision: text slides become live text, title from the title slide", asyn
 await t("--only <link> --fallback re-imports one handled post as a fallback draft", async () => {
   const vmock = path.join(tmp, "mock-vision-post.json");
   const analyses = path.join(tmp, "mock-vision.json");
+  // Re-importing replaces the earlier article of the same post; keep a copy to restore afterwards.
+  const keep = ["src/posts/cavajournal/김테스트-서울의-습관.md", "src/media/cavajournal/김테스트-서울의-습관"];
+  for (const k of keep) fs.cpSync(path.join(tmp, k), path.join(tmp, "backup", k), { recursive: true });
   const out = (await execFileAsync("node", ["scripts/sync-instagram.mjs", "--mock", vmock, "--mock-vision", analyses,
     "--only", "https://www.instagram.com/p/TEST7/?img_index=1", "--fallback"], { cwd: tmp, encoding: "utf8" })).stdout;
+  assert.ok(!fs.existsSync(path.join(tmp, keep[0])), "earlier article of the same post replaced");
+  for (const k of keep) fs.cpSync(path.join(tmp, "backup", k), path.join(tmp, k), { recursive: true });
   assert.match(out, /Importing one post only/);
   const f = path.join(tmp, "src/posts/cavajournal/캡션-첫-줄.md");
   assert.ok(fs.existsSync(f), "fallback title comes from the caption");
@@ -351,6 +356,26 @@ await t(`manuscript (${label}): its text, the carousel's pictures in place, capt
   const gh = fs.readFileSync(ghOut, "utf8");
   assert.match(gh, /changed=false/);
   assert.match(gh, /published=1/);
+});
+
+await t("a post imported before its manuscript is rebuilt once the manuscript is in", async () => {
+  const st = path.join(tmp, "instagram-state.json");
+  const state = JSON.parse(fs.readFileSync(st, "utf8"));
+  // The post was imported earlier without a manuscript: seen, with an OCR-built article.
+  for (const f of fs.readdirSync(path.join(tmp, "src/posts/cavajournal"))) if (f.startsWith("지혜진")) fs.rmSync(path.join(tmp, "src/posts/cavajournal", f));
+  const old = path.join(tmp, "src/posts/cavajournal/임시의-우리-아트페어-만들기-실전편.md");
+  fs.writeFileSync(old, '---\ntitle: "임시의 우리: 아트페어 만들기 실전편"\ndate: "2026-10-13T10:00:00+0000"\nsource: "instagram"\ninstagram_id: "1800000000000009"\n---\n<p>OCR text</p>\n');
+  state.seen = [...new Set([...state.seen, "1800000000000009"])];
+  state.manuscript = (state.manuscript || []).filter((x) => x !== "1800000000000009");
+  fs.writeFileSync(st, JSON.stringify(state));
+  const run = async () => (await execFileAsync("node", ["scripts/sync-instagram.mjs", "--mock", path.join(tmp, "mock-imsi.json"),
+    "--mock-layout", path.join(ROOT, "test/fixtures/manuscripts/layout-imsi.json"), "--manuscripts", path.join(ROOT, "test/fixtures/manuscripts")],
+    { cwd: tmp, encoding: "utf8" })).stdout;
+  const out = await run();
+  assert.match(out, /now have a manuscript: rebuilding/);
+  assert.ok(!fs.existsSync(old), "the earlier article is replaced");
+  assert.ok(fs.existsSync(path.join(tmp, "src/posts/cavajournal/지혜진-임시의-우리-아트페어-만들기-실전편.md")));
+  assert.match(await run(), /No new Instagram posts/, "rebuilt only once");
 });
 
 await t("site builds with synced posts", () => {

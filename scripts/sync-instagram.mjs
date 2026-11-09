@@ -368,8 +368,29 @@ async function main() {
     return ms;
   };
 
+  // A post imported before its manuscript was in: rebuild it from the manuscript once.
+  state.manuscript = state.manuscript || [];
+  state.manuscriptTried = state.manuscriptTried || {};
+  const builtFromManuscript = new Set(state.manuscript.map(String));
+  const manuscriptName = (m) => {
+    const texts = [parseCaption(m.caption || "").title, m.caption || ""];
+    const local = findManuscript(manuscripts, texts);
+    if (local) return local.file;
+    const doc = driveDocs.find((d) => titleScore(d.name, texts) >= 0.85);
+    return doc ? `drive:${doc.id}:${doc.modifiedTime}` : null;
+  };
+  const redo = new Set();
+  for (const m of media) {
+    const id = String(m.id);
+    if (ONLY || !known.has(id) || builtFromManuscript.has(id)) continue;
+    if (cutoff && new Date(m.timestamp) < cutoff) continue;
+    const name = manuscriptName(m);
+    if (name && state.manuscriptTried[id] !== name) redo.add(id);
+  }
+  if (redo.size) console.log(`${redo.size} imported post(s) now have a manuscript: rebuilding them.`);
+
   const fresh = media
-    .filter((m) => ONLY ? matchesOnly(m) : !known.has(String(m.id)))
+    .filter((m) => ONLY ? matchesOnly(m) : !known.has(String(m.id)) || redo.has(String(m.id)))
     .filter((m) => ONLY || !cutoff || new Date(m.timestamp) >= cutoff)
     .filter((m) => m.media_product_type !== "STORY")
     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)); // oldest first → stable handles
@@ -501,6 +522,13 @@ async function main() {
       else if (!useVision) warnings.push("Automatic transcription is off or unavailable, so only the first image was imported.");
     }
 
+    if (redo.has(String(m.id)) && mode !== "manuscript") {
+      // Rebuilding only makes sense from the manuscript; keep the earlier import.
+      console.log(`  – ${m.id}: manuscript couldn't be matched to the slides; keeping the earlier import`);
+      fs.rmSync(path.join(MEDIA_DIR, journal, tmpHandle), { recursive: true, force: true });
+      state.manuscriptTried[String(m.id)] = manuscriptName(m);
+      continue;
+    }
     if (migrated.has(handleize(title))) {
       console.log(`  – skip ${m.id} (already on the site: ${title})`);
       fs.rmSync(path.join(MEDIA_DIR, journal, tmpHandle), { recursive: true, force: true });
@@ -508,6 +536,14 @@ async function main() {
       continue;
     }
 
+    // The earlier import of this post (without its manuscript) is replaced.
+    const prior = existing.find((p) => String(p.data.instagram_id || "") === String(m.id));
+    const replaced = [];
+    if (prior) {
+      fs.rmSync(prior.file, { force: true });
+      fs.rmSync(path.join(MEDIA_DIR, prior.journal, prior.handle), { recursive: true, force: true });
+      replaced.push(prior.file, path.join(MEDIA_DIR, prior.journal, prior.handle));
+    }
     // Move media to its final folder and point every src at it.
     const handle = uniqueHandle(journal, handleize(title) || `instagram-${m.id}`);
     const from = path.join(MEDIA_DIR, journal, tmpHandle);
@@ -554,8 +590,9 @@ async function main() {
     state.seen.push(m.id);
     created++;
     // Built from the approved manuscript: published as soon as the post is up (unless set to review).
+    if (mode === "manuscript") state.manuscript.push(String(m.id));
     if (mode === "manuscript" && (ig.manuscriptReview || "publish") === "publish") {
-      published.push({ title, paths: [file, path.join(MEDIA_DIR, journal, handle)] });
+      published.push({ title, paths: [file, path.join(MEDIA_DIR, journal, handle), ...replaced] });
       console.log(`      → publishes now (approved manuscript)${warnings.length ? `; notes: ${warnings.join(" | ")}` : ""}`);
       continue;
     }

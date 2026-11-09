@@ -351,6 +351,7 @@ export function loadManuscripts(dir) {
       const meta = fs.existsSync(`${base}.json`) ? JSON.parse(fs.readFileSync(`${base}.json`, "utf8")) : {};
       if (meta.author) m.author = meta.author;
       if (meta.title && !m.title) m.title = meta.title;
+      m.titles = [m.title, meta.title, meta.postTitle].filter(Boolean);
       out.push({ ...m, file: path.relative(process.cwd(), path.join(dir, f)) });
     } catch (e) {
       console.warn(`  ! manuscript ${f} couldn't be read: ${e.message}`);
@@ -376,11 +377,13 @@ export function looksLikeName(s) {
 export function findManuscript(manuscripts, texts) {
   let best = null, bestS = 0;
   for (const m of manuscripts) {
-    const tg = grams(m.title || "");
-    if (tg.size < 3) continue;
-    for (const t of texts) {
-      const s = contained(tg, grams(t || ""));
-      if (s > bestS) { best = m; bestS = s; }
+    for (const title of m.titles || [m.title]) {
+      const tg = grams(title || "");
+      if (tg.size < 3) continue;
+      for (const t of texts) {
+        const s = contained(tg, grams(t || ""));
+        if (s > bestS) { best = m; bestS = s; }
+      }
     }
   }
   return bestS >= 0.85 ? best : null;
