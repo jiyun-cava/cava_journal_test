@@ -14,7 +14,7 @@ import { docxToManuscript } from "./docx.mjs";
 
 /* ---------------- manuscript text ---------------- */
 
-const unescape = (s) => s.replace(/\\([!\[\]*_#().-])/g, "$1");
+const unescape = (s) => s.replace(/\\([^\w\s])/g, "$1");
 
 /**
  * Parse a manuscript exported as text/Markdown (Google Docs "read" output, .md or .txt).
@@ -38,16 +38,21 @@ export function parseManuscript(text, comments = []) {
     const imgRe = /<comment_start id=([^>]+)>\\?\[image\\?\]<comment_end id=\1>/g;
     let m;
     while ((m = imgRe.exec(raw))) images.push({ caption: (byId.get(m[1]) || "").trim() });
-    const line = unescape(raw.replace(imgRe, "").replace(/<comment_(start|end) id=[^>]+>/g, "").replace(/\[image\]/g, "")).trim();
+    let line = unescape(raw.replace(imgRe, "").replace(/<comment_(start|end) id=[^>]+>/g, "").replace(/\\?\[image\\?\]/g, "")).trim();
     const head = line.match(/^#{1,3}\s+(.*)$/);
     if (head) {
-      current = { name: head[1].trim(), title: "", blocks: [], bio: /필진|저자|author|bio|소개/i.test(head[1]) };
+      // "### **Title**": a bold heading is the title of the version that follows.
+      const boldHead = head[1].trim().match(/^\*\*(.+?)\*\*$/);
+      const name = boldHead ? boldHead[1].trim() : head[1].trim();
+      current = { name, title: boldHead ? name : "", blocks: [], bio: /필진|저자|author|bio|소개/i.test(name) };
       sections.push(current);
       continue;
     }
     if (!line) continue;
+    // *italic* / ***bold italic*** lines (lyrics, captions): keep the words, drop the markers.
+    if (/^\*{1}[^*]|[^*]\*{1}$/.test(line) && /^\*+.*\*+$/.test(line)) { const t = line.replace(/^\*+\s*|\s*\*+$/g, ""); if (!t) continue; line = t; }
     if (!current) { current = { name: "", title: "", blocks: [], bio: false }; sections.push(current); }
-    if (current.bio) { bio = [bio, line].filter(Boolean).join(" "); continue; }
+    if (current.bio) { bio = [bio, line.replace(/\*\*/g, "").trim()].filter(Boolean).join(" "); continue; }
     const bold = line.match(/^\*\*(.+)\*\*$/);
     if (bold && !current.title && !current.blocks.length) { current.title = bold[1].trim(); continue; }
     if (bold) { current.blocks.push({ type: "p", text: bold[1].trim(), soft: false }); continue; }
@@ -330,6 +335,9 @@ export function assemble(manuscript, slides) {
 
 /* ---------------- manuscripts on file ---------------- */
 
+// Bump when parsing changes, so articles built from manuscripts are rebuilt once.
+const PARSER_VERSION = 2;
+
 /**
  * Manuscripts kept in a folder: <name>.md or <name>.txt, with the captions of
  * its images (comments) in <name>.comments.json when there are any.
@@ -352,6 +360,8 @@ export function loadManuscripts(dir) {
       const meta = fs.existsSync(`${base}.json`) ? JSON.parse(fs.readFileSync(`${base}.json`, "utf8")) : {};
       if (meta.author) m.author = meta.author;
       if (meta.title && !m.title) m.title = meta.title;
+      // "articleTitle": the article's title when the Doc's own first bold line isn't it.
+      if (meta.articleTitle) m.title = meta.articleTitle;
       // "version": the Doc tab to use when the Doc holds several versions.
       if (meta.version) {
         const chosen = m.versions.filter((v) => v.name === meta.version);
@@ -360,7 +370,7 @@ export function loadManuscripts(dir) {
       }
       m.titles = [m.title, meta.title, meta.postTitle].filter(Boolean);
       // Changes when the manuscript (or its author/title) changes: the article is then rebuilt.
-      m.hash = crypto.createHash("sha1").update(JSON.stringify([text, comments, meta.author || "", meta.postTitle || "", meta.version || ""])).digest("hex").slice(0, 12);
+      m.hash = crypto.createHash("sha1").update(JSON.stringify([PARSER_VERSION, text, comments, meta.author || "", meta.postTitle || "", meta.version || "", meta.articleTitle || ""])).digest("hex").slice(0, 12);
       out.push({ ...m, file: path.relative(process.cwd(), path.join(dir, f)) });
     } catch (e) {
       console.warn(`  ! manuscript ${f} couldn't be read: ${e.message}`);
