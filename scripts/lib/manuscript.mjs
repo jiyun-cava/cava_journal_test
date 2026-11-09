@@ -48,6 +48,7 @@ export function parseManuscript(text, comments = []) {
   let current = null;
   const images = [];
   let lastImageLine = false;
+  let openTitle = null;
   for (const raw of text.replace(/\r/g, "").split("\n")) {
     // Images and their captions (comments anchored on the image).
     const imgRe = /<comment_start id=([^>]+)>\\?\[image\\?\]<comment_end id=\1>/g;
@@ -59,12 +60,30 @@ export function parseManuscript(text, comments = []) {
     let line = unescape(rest.replace(/<comment_(start|end) id=[^>]+>/g, "").replace(/\\?\[image\\?\]/g, "")).trim();
     const imageLine = images.length > before && !line;
     if (imageLine) { lastImageLine = true; continue; }
-    const head = line.match(/^#{1,3}\s+(.*)$/);
+    // A bold title split over two lines ("# **어쩌다 이끼까지  " / ": 모스 캘린더 네이밍 비하인드**").
+    if (openTitle) {
+      { const more = line.replace(/\*\*\s*$/, "").trim(); openTitle.title = `${openTitle.title}${/^[:：]/.test(more) ? "" : " "}${more}`.trim(); }
+      if (/\*\*\s*$/.test(line)) openTitle = null;
+      continue;
+    }
+    const head = line.match(/^(#{1,3})\s+(.*)$/);
     if (head) {
-      // "### **Title**": a bold heading is the title of the version that follows.
-      const boldHead = head[1].trim().match(/^\*\*(.+?)\*\*$/);
-      const name = boldHead ? boldHead[1].trim() : head[1].trim();
+      const textH = head[2].trim();
+      const boldHead = textH.match(/^\*\*(.+?)(\*\*)?$/);
+      const name = boldHead ? boldHead[1].trim() : textH;
+      // A bold heading ("# **Title**", "### **Title**") is the title of the tab it's in.
+      if (boldHead && current && !current.bio && !current.title && !current.blocks.length) {
+        current.title = name;
+        if (!boldHead[2]) openTitle = current;
+        continue;
+      }
+      // "## …" / "### …" inside a tab: a subheading, not another version.
+      if (head[1].length > 1 && current && !current.bio) {
+        current.blocks.push({ type: "heading", text: name });
+        continue;
+      }
       current = { name, title: boldHead ? name : "", blocks: [], bio: /필진|저자|author|bio|소개/i.test(name) };
+      if (boldHead && !boldHead[2]) openTitle = current;
       sections.push(current);
       continue;
     }
@@ -111,9 +130,9 @@ export function parseManuscript(text, comments = []) {
   const versions = sections.filter((s) => !s.bio && s.blocks.length);
   for (const v of versions) {
     // Docs exports number every list item "1."; number them in order.
-    const heads = v.blocks.filter((b) => b.type === "heading");
+    const heads = v.blocks.filter((b) => b.type === "heading" && b.n !== undefined);
     if (heads.length > 1 && heads.every((h) => h.n === heads[0].n)) heads.forEach((h, i) => { h.n = heads[0].n + i; });
-    for (const b of v.blocks) { if (b.type === "heading") b.text = `${b.n}. ${b.text}`; delete b.n; delete b.soft; }
+    for (const b of v.blocks) { if (b.type === "heading" && b.n !== undefined) b.text = `${b.n}. ${b.text}`; delete b.n; delete b.soft; }
   }
   const title = versions.map((v) => v.title).find(Boolean) || "";
   return { title, versions, bio, images };
@@ -331,6 +350,7 @@ export function assemble(manuscript, slides) {
       const text = g.lines.map((l) => l.text).join(" ").replace(/\s+/g, " ").trim();
       if (norm(text).length < 4) continue;
       const c = captionMatch(text);
+      if (c && c.used) continue; // the same caption again (it runs over two slides)
       const isNote = /^\s*(←|<|«|‹)/.test(text);
       let target = null;
       if (isNote) target = blocksHere.length && g.top > (blocksHere[0].crop?.top ?? 0) ? blocksHere[blocksHere.length - 1] : (pictures[pictures.length - blocksHere.length - 1] || null);
@@ -396,7 +416,7 @@ export function assemble(manuscript, slides) {
 /* ---------------- manuscripts on file ---------------- */
 
 // Bump when parsing changes, so articles built from manuscripts are rebuilt once.
-const PARSER_VERSION = 4;
+const PARSER_VERSION = 5;
 
 /**
  * Manuscripts kept in a folder: <name>.md or <name>.txt, with the captions of
