@@ -11,7 +11,7 @@ instagram_id: "18100078777979196"
 instagram_permalink: "https://www.instagram.com/p/Dbuz2lwkhY0/"
 ---
 <div class="rte">
-<div class="ig-gallery"><figure><video controls playsinline preload="metadata" poster="/media/cavajournal/i-m-f-모방-변형-날조/02-poster.jpg" src="/media/cavajournal/i-m-f-모방-변형-날조/02.mp4"></video></figure></div>
+<div class="ig-gallery"><figure><video controls playsinline preload="metadata" poster="/media/cavajournal/i-m-f-모방-변형-날조/02-poster.jpg" src="/media/cavajournal/i-m-f-모방-변형-날조/02.mp4"></video><figcaption>공유 문서 항목</figcaption></figure></div>
 <div class="slide-text">
 <p>D.A.F뿐만 아니라 라이바흐(Laibach), 스로빙 그리슬(Throbbing Gristle) 등 당시 이 계열 음악의 일부에서는 파시스트들의 엄숙한 주제를 전유하여 우스꽝스럽게 비틀고, 권위적인 정치적 상징을 해체하여 끌어내리려는 움직임이 있었다.</p>
 <p>만약에 80-90년대 한국에 저런 음악이 들어왔으면 어땠을까? 민주화와 서구 최신 반문화 음악 수입이 같이 이루어졌었다면? 당시 한국은 그러면 큰일 나는 살벌한 곳이었지만, 이런 가상 설정에서 출발해 밴드 이름을 I.M.F(물론 국제통화기금과 금융위기를 연상시키는)로 만들었다. 약자인 Imitation(모방), Modification(변형), Fabrication(날조)은 나중에 붙인 것이지만 모방, 변형, 날조는 음악이 재생산되고 퍼져 나가는 모습으로 적절하다고 생각했다.</p>
@@ -70,41 +70,23 @@ instagram_permalink: "https://www.instagram.com/p/Dbuz2lwkhY0/"
 <p>《Imported Mold》는 드럼을 제외한 모든 파트를 각자 녹음해서 만들었다. 각자 직장이 있거나 다른 일을 병행해야 했기 때문인데, 필요할 땐 한 번씩 모여서 회의를 하거나 공유 문서에서 의견을 나눴다. 성건은 믹싱, 마스터링을 주로 맡았고, 세정은 머천다이즈 제작, 성식은 앨범 아트와 피지컬 앨범 제작, 나는 앨범 제작 진행을 맡았다.</p>
 </div>
 <div class="ig-gallery ig-cutout"><figure style="width:90%"><img src="/media/cavajournal/i-m-f-모방-변형-날조/09-a.jpg" alt="" loading="lazy" decoding="async"><figcaption>어쩌다 0.1.\ — 함 석 영 ead Guitar</figcaption></figure></div>
-<div class="ig-gallery"><figure><video controls playsinline preload="metadata" poster="/media/cavajournal/i-m-f-모방-변형-날조/10-poster.jpg" src="/media/cavajournal/i-m-f-모방-변형-날조/10.mp4"></video></figure></div>
-<div class="ig-gallery"><figure><video controls playsinline preload="metadata" poster="/media/cavajournal/i-m-f-모방-변형-날조/11-poster.jpg" src="/media/cavajournal/i-m-f-모방-변형-날조/11.mp4"></video></figure></div>
-<div class="ig-gallery"><figure><video controls playsinline preload="metadata" poster="/media/cavajournal/i-m-f-모방-변형-날조/12-poster.jpg" src="/media/cavajournal/i-m-f-모방-변형-날조/12.mp4"></video></figure></div>
-<div class="ig-gallery ig-cutout"><figure style="width:90%"><img src="/media/cavajournal/i-m-f-모방-변형-날조/13-a.jpg" alt="" loading="lazy" decoding="async"></figure></div>
-<div class="ig-gallery ig-cutout"><figure style="width:88%"><img src="/media/cavajournal/i-m-f-모방-변형-날조/13-b.jpg" alt="" loading="lazy" decoding="async"></figure></div>
+<div class="ig-gallery"><figure><video controls playsinline preload="metadata" poster="/media/cavajournal/i-m-f-모방-변형-날조/10-poster.jpg" src="/media/cavajournal/i-m-f-모방-변형-날조/10.mp4"></video><figcaption>드럼 녹음 날(몰스튜디오)</figcaption></figure></div>
+<div class="ig-gallery"><figure><video controls playsinline preload="metadata" poster="/media/cavajournal/i-m-f-모방-변형-날조/11-poster.jpg" src="/media/cavajournal/i-m-f-모방-변형-날조/11.mp4"></video><figcaption>드럼 녹음 전 스튜디오 엔지니어분들께 전달할, 세정이가 작성한 드럼 사운드/레코딩 레퍼런스 및 노트 (몰스튜디오에게 감사합니다.)</figcaption></figure></div>
+<div class="ig-gallery"><figure><video controls playsinline preload="metadata" poster="/media/cavajournal/i-m-f-모방-변형-날조/12-poster.jpg" src="/media/cavajournal/i-m-f-모방-변형-날조/12.mp4"></video><figcaption>앨범명을 정하고 나서 써보는 성식</figcaption></figure></div>
+<div class="ig-gallery ig-cutout"><figure style="width:90%"><img src="/media/cavajournal/i-m-f-모방-변형-날조/13-a.jpg" alt="" loading="lazy" decoding="async"><figcaption>또 써보는 성식</figcaption></figure></div>
+<div class="ig-gallery ig-cutout"><figure style="width:88%"><img src="/media/cavajournal/i-m-f-모방-변형-날조/13-b.jpg" alt="" loading="lazy" decoding="async"><figcaption>1차 믹싱 회의 / 믹싱에 대한 의견 노트</figcaption></figure></div>
 <div class="slide-text">
-<p>&lt;앨범 제작을 위한 스케줄표&gt;</p>
-<p>&lt;공유 문서 항목&gt;</p>
 <p>늘 그렇듯 정할 것이 많았다.</p>
-<p>&lt;드럼 녹음 날(몰스튜디오)&gt;</p>
-<p>세정은 두 프로(7시간) 만에 14곡의 녹음을 해냈다.  (영상- img\_1210)</p>
-<p>&lt;드럼 녹음 전 스튜디오 엔지니어분들께 전달할, 세정이가 작성한 드럼 사운드/레코딩 레퍼런스 및 노트&gt; (몰스튜디오에게 감사합니다.)</p>
-<p>&lt;앨범명을 정하고 나서 써보는 성식&gt;</p>
-<p>&lt;또 써보는 성식&gt; img\_1216.mov</p>
-<p>&lt;1차 믹싱 회의&gt; ( img\_1439.mov)</p>
-<p>주로 믹싱을 맡은 성건의 작업실에서 모여, 의견을 나눴다. 믹싱에 대한 의견은 회의 전후로 문서에 남겨뒀고, 본인의 이펙트 체인 등을 성건에게 전달해서 믹싱을 도왔다. 성건네에는 팝콘 기계가 있어서 팝콘을 튀겨먹었다. (img\_1073.mov)</p>
-<p>&lt;믹싱에 대한 의견 노트&gt;</p>
+<p>세정은 두 프로(7시간) 만에 14곡의 녹음을 해냈다.  (영상- img_1210)</p>
+<p>주로 믹싱을 맡은 성건의 작업실에서 모여, 의견을 나눴다. 믹싱에 대한 의견은 회의 전후로 문서에 남겨뒀고, 본인의 이펙트 체인 등을 성건에게 전달해서 믹싱을 도왔다. 성건네에는 팝콘 기계가 있어서 팝콘을 튀겨먹었다. (img_1073.mov)</p>
 </div>
-<div class="ig-gallery ig-cutout"><figure style="width:90%"><img src="/media/cavajournal/i-m-f-모방-변형-날조/14-a.jpg" alt="" loading="lazy" decoding="async"></figure></div>
+<div class="ig-gallery ig-cutout"><figure style="width:90%"><img src="/media/cavajournal/i-m-f-모방-변형-날조/14-a.jpg" alt="" loading="lazy" decoding="async"><figcaption>내가 걸어서 보낸, 혹은 걸어주었으면 하는 기타 이펙트 체인에 관한 노트</figcaption></figure></div>
+<div class="ig-gallery"><figure><video controls playsinline preload="metadata" poster="/media/cavajournal/i-m-f-모방-변형-날조/15-poster.jpg" src="/media/cavajournal/i-m-f-모방-변형-날조/15.mp4"></video><figcaption>가사 작성 중인 성건 / 중간 긴급 회의 때 성식과 성건</figcaption></figure></div>
+<div class="ig-gallery"><figure><img src="/media/cavajournal/i-m-f-모방-변형-날조/16.jpg" alt="회의하다가 싸우는 세정과 성식" loading="lazy" decoding="async"></figure></div>
+<div class="ig-gallery"><figure><img src="/media/cavajournal/i-m-f-모방-변형-날조/17-a.jpg" alt="" loading="lazy" decoding="async"><figcaption>부산 지하철에서 성식, 세정, 성건 / 혼자 보컬 녹음하고 온 성건이 보내온 사진. 기간이 만료돼서 사진이 이렇다. / 2차 믹싱 회의 / 작년 대만 공연 성식</figcaption></figure></div>
 <div class="slide-text">
-<p>&lt;내가 걸어서 보낸, 혹은 걸어주었으면 하는 기타 이펙트 체인에 관한 노트&gt;</p>
-</div>
-<div class="ig-gallery"><figure><video controls playsinline preload="metadata" poster="/media/cavajournal/i-m-f-모방-변형-날조/15-poster.jpg" src="/media/cavajournal/i-m-f-모방-변형-날조/15.mp4"></video></figure></div>
-<div class="slide-text">
-<p>&lt;IMG\_1072.mov&gt; -가사 작성 중인 성건 &lt;중간 긴급 회의 때 성식과 성건&gt;</p>
-<p>&lt;회의하다가 싸우는 세정과 성식&gt;</p>
-</div>
-<div class="ig-gallery"><figure><img src="/media/cavajournal/i-m-f-모방-변형-날조/17-a.jpg" alt="" loading="lazy" decoding="async"></figure></div>
-<div class="slide-text">
-<p>&lt;부산 지하철에서 성식, 세정, 성건&gt;</p>
-<p>&lt;혼자 보컬 녹음하고 온 성건이 보내온 사진. 기간이 만료돼서 사진이 이렇다.&gt;</p>
 <p>성건이가 문래 합주실에서 보컬 녹음을 하다가 다른 합주실에서 녹음을 했는데, 뭔가 다르다며 벽이 달라서 그런가 하고 나에게 물었다.</p>
-<p>2차 믹싱 회의</p>
 <p>성건이 째깐둥이같이 나와서 좋다.</p>
-<p>작년 대만 공연 성식</p>
 <p>처음 앨범을 만들자고 얘기했을 땐 이렇게 넷이서 처음부터 끝까지 다 만들 생각은 아니었다. 돈을 아끼자는 말에서 출발해 여기까지 온 것 같다. (적어도 나는 DIY 정신 같은 걸 생각하진 않았다)</p>
 <p>그래서인지 중간중간 다툼이 있거나 곤란한 일이 있어도 ‘잘되려고 그러나 보다.’,‘이럴 때도 됐지’, ‘결국엔 앨범 만들어낼 거고, 그것도 잘 만들 거야.’라고 생각했고, 다 즐거웠다.</p>
 </div>
