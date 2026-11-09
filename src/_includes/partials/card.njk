@@ -6,7 +6,6 @@
       {%- else %}
       <span class="card__placeholder" aria-hidden="true">{{ site.name }}</span>
       {%- endif %}
-      {%- if post.data.source == "instagram" %}<span class="card__badge">Instagram</span>{% endif %}
     </div>
     <div class="card__body">
       {%- if showJournal %}<p class="card__kicker">{{ post.data.journal | journalTitle }}</p>{% endif %}
