@@ -352,9 +352,15 @@ export function loadManuscripts(dir) {
       const meta = fs.existsSync(`${base}.json`) ? JSON.parse(fs.readFileSync(`${base}.json`, "utf8")) : {};
       if (meta.author) m.author = meta.author;
       if (meta.title && !m.title) m.title = meta.title;
+      // "version": the Doc tab to use when the Doc holds several versions.
+      if (meta.version) {
+        const chosen = m.versions.filter((v) => v.name === meta.version);
+        if (chosen.length) { m.versions = chosen; m.title = chosen[0].title || m.title; }
+        else console.warn(`  ! manuscript ${f}: version "${meta.version}" not found; all versions kept`);
+      }
       m.titles = [m.title, meta.title, meta.postTitle].filter(Boolean);
       // Changes when the manuscript (or its author/title) changes: the article is then rebuilt.
-      m.hash = crypto.createHash("sha1").update(JSON.stringify([text, comments, meta.author || "", meta.postTitle || ""])).digest("hex").slice(0, 12);
+      m.hash = crypto.createHash("sha1").update(JSON.stringify([text, comments, meta.author || "", meta.postTitle || "", meta.version || ""])).digest("hex").slice(0, 12);
       out.push({ ...m, file: path.relative(process.cwd(), path.join(dir, f)) });
     } catch (e) {
       console.warn(`  ! manuscript ${f} couldn't be read: ${e.message}`);
