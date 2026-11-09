@@ -2,7 +2,7 @@
 layout: layouts/base.njk
 bodyClass: is-article
 ---
-{%- set list = collections[journal] %}
+{%- set list = collections.allPosts %}
 {%- set nav = list | prevNext(page.url) %}
 <article class="article">
   {%- if cover %}
@@ -12,7 +12,6 @@ bodyClass: is-article
   {%- endif %}
 
   <header class="article__header">
-    <a class="article__journal" href="/blogs/{{ journal }}/">{{ journal | journalTitle }}</a>
     <h1 class="article__title">{{ title }}</h1>
     <p class="article__meta">
       <time datetime="{{ page.date | isoDate }}">{{ page.date | displayDate }}</time>

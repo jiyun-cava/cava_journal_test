@@ -2,7 +2,7 @@
 //   /blogs/<journal>/  and  /blogs/<journal>/page/2/ ...
 // `before` turns the full post list into page chunks for every journal.
 export default {
-  layout: "layouts/base.njk",
+  layout: null,
   pagination: {
     data: "collections.allPosts",
     size: 1,

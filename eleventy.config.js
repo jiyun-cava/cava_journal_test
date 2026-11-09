@@ -11,6 +11,29 @@ const pathPrefix = "/" + (process.env.PATH_PREFIX || "").replace(/^\/+|\/+$/g, "
 const basePath = pathPrefix === "/" ? "" : pathPrefix;
 const origin = new URL(config.url).origin;
 
+/** Width and height of a local JPEG/PNG under src/ (read from its header), or null. */
+const sizeCache = new Map();
+function imageSize(url) {
+  if (!url || /^https?:/.test(url)) return null;
+  if (sizeCache.has(url)) return sizeCache.get(url);
+  let out = null;
+  try {
+    const b = fs.readFileSync("./src" + decodeURI(url));
+    if (b[0] === 0x89 && b[1] === 0x50) out = { w: b.readUInt32BE(16), h: b.readUInt32BE(20) };
+    else if (b[0] === 0xff && b[1] === 0xd8) {
+      let i = 2;
+      while (i < b.length) {
+        if (b[i] !== 0xff) { i++; continue; }
+        const m = b[i + 1], len = b.readUInt16BE(i + 2);
+        if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) { out = { h: b.readUInt16BE(i + 5), w: b.readUInt16BE(i + 7) }; break; }
+        i += 2 + len;
+      }
+    }
+  } catch {}
+  sizeCache.set(url, out);
+  return out;
+}
+
 export default function (eleventyConfig) {
   // Rewrites every root-relative href/src in the HTML output with the prefix.
   eleventyConfig.addPlugin(EleventyHtmlBasePlugin);
@@ -45,6 +68,7 @@ export default function (eleventyConfig) {
   eleventyConfig.addFilter("withBase", (p) => (String(p).startsWith("/") ? basePath + p : p));
   eleventyConfig.addFilter("journalTitle", (key) => config.journals.find((j) => j.key === key)?.title || key);
   eleventyConfig.addFilter("json", (v) => JSON.stringify(v));
+  eleventyConfig.addFilter("imageSize", (url) => imageSize(url) || { w: 4, h: 5 });
   eleventyConfig.addFilter("take", (arr, n) => (arr || []).slice(0, n));
   eleventyConfig.addFilter("prevNext", (list, url) => {
     const i = list.findIndex((p) => p.url === url);
