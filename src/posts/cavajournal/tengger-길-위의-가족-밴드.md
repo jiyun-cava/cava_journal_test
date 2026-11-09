@@ -1,8 +1,9 @@
 ---
-handle: "길-위의-가족-밴드"
-title: "길 위의 가족 밴드"
+handle: "tengger-길-위의-가족-밴드"
+title: "TENGGER — 길 위의 가족 밴드"
 date: "2026-07-11T05:00:02+0000"
-cover: "/media/cavajournal/길-위의-가족-밴드/01.jpg"
+author: "TENGGER"
+cover: "/media/cavajournal/tengger-길-위의-가족-밴드/01.jpg"
 excerpt: ": 시코쿠 순례와 필드 레코딩 마르키도 상은 불교 사상에 열광하는 불교도였다. 대학 때까지는 열심히 성당에 다녔던 나였지만, 그의 이야기를 들으며 불교에 관심을 갖게 되었다. 그가 불교 성지를 찾아 인도에 배낭여행을 길게 다녀온 당시의 충격에 대해 끝…"
 tags: ["cavajournal"]
 source: "instagram"
@@ -18,12 +19,12 @@ instagram_permalink: "https://www.instagram.com/p/Dao91S_kYNg/"
 <p>시코쿠 순례는 일본을 구성하는 네 개의 큰 섬들 중 하나인 시코쿠 전체에 분포되어 있는 불교 사찰 88개(혹은 108개)를 순례하는 여정이다. 건장한 성인이 걸어서 한 달 반 정도를 소요해야 하는 이 순례길은, 시작점과 끝이 이어지는 순환 구조다.</p>
 <p>시코쿠의 사찰들은 자연환경을 섬기는 일본의 신사와 함께 있는 곳이 대부분이었고, 사찰로 가는 도중에 공기가 신비롭게 변화하는 지점을 마주하는 경험을 자주 하게 되었다. 사찰에서는 손과 입을 씻고, 종을 울린 뒤, 진언眞言(만트라)을 암송하는 의식을 행하게 된다. 처음에는 낯선 의식이었지만, 반복해서 입 밖으로 내는 소리는 어느 순간 종교 의식을 넘어 몸의 호흡으로 트랜스되었다. 우리는 사찰 경내에 레코더를 두고 타종 소리와 그곳의 앰비언스를 수집했다.</p>
 </div>
-<div class="ig-gallery"><figure><img src="/media/cavajournal/길-위의-가족-밴드/04-a.jpg" alt="" loading="lazy" decoding="async"><figcaption>2014년 첫번째 시코쿠 순례길에서</figcaption></figure></div>
-<div class="ig-gallery"><figure><img src="/media/cavajournal/길-위의-가족-밴드/05.jpg" alt="" loading="lazy" decoding="async"></figure></div>
+<div class="ig-gallery"><figure><img src="/media/cavajournal/tengger-길-위의-가족-밴드/04-a.jpg" alt="" loading="lazy" decoding="async"><figcaption>2014년 첫번째 시코쿠 순례길에서</figcaption></figure></div>
+<div class="ig-gallery"><figure><img src="/media/cavajournal/tengger-길-위의-가족-밴드/05.jpg" alt="" loading="lazy" decoding="async"></figure></div>
 <div class="slide-text">
 <p>여기서 말하는 '우리'는 여행하는 가족 음악 그룹 TENGGER(텐거)다. 우리의 이름은 '경계 없이 펼쳐진 무한한 하늘'을 뜻하는 몽골어에서 가져왔다. 헝가리어로는 '드넓은 바다'를 뜻하기도 한다.</p>
 </div>
-<div class="ig-gallery ig-cutout"><figure style="width:64%"><img src="/media/cavajournal/길-위의-가족-밴드/06-a.jpg" alt="" loading="lazy" decoding="async"><figcaption>므느 본 To고본</figcaption></figure></div>
+<div class="ig-gallery ig-cutout"><figure style="width:64%"><img src="/media/cavajournal/tengger-길-위의-가족-밴드/06-a.jpg" alt="" loading="lazy" decoding="async"><figcaption>므느 본 To고본</figcaption></figure></div>
 <div class="slide-text">
 <p>순례길에서 만나는 시코쿠의 주민들은 백의白衣를 입은 순례자들을 발견하면 대가 없이 베푸는 오셋타이(환대)라는 행위를 통해 먹을 것, 잠자리, 노잣돈을 건네기도 한다. 우리도 몇 차례 도움을 받았다. 누군지도 모르는 이방인에게 베풀어주는 조건 없는 다정함에 감동하며, 우리가 할 수 있는 오셋타이도 있지 않을까 생각하던 중, 순례길에서 '미니 시코쿠'를 발견하게 되었다.</p>
 <p>시간과 경제적인 여유가 필요한 시코쿠 순례를 간접 경험할 수 있도록, 한 사찰의 경내에 모든 사찰의 흙을 담은 주머니를 만지며 걷게 만든 장치라든가, 얕은 산 전체에 모든 사찰의 본존을 본떠 만든 석상을 설치한다든가 하는 식이다. 우리는 소리로 미니 시코쿠를 만들기로 했고, 기록한 모든 사운드들의 레이어를 겹쳐보았다. 그랬더니 많은 소리를 겹쳤는데도 미니멀하고 명상적인 사운드가 탄생했다. 그렇게 정리된 음원을 일본의 전통 종이로 하나하나 패키징한 카세트테잎 음반 &lt;MINISHIKO&gt;로 만들었다. 그리고 그 사운드와 함께 &lt;음악과 순례&gt;와 &lt;Pilgrim Progress&gt;라는 타이틀의 전시와 &lt;관음観音&gt;이라는 인터랙티브 퍼포먼스 시리즈를 한국에서 진행했다.</p>
@@ -39,16 +40,16 @@ instagram_permalink: "https://www.instagram.com/p/Dao91S_kYNg/"
 <p>앨범의 메인 커버 디자인은 순례 중에 보았던 인상적인 하늘의 모습과 음양이 순환하는 이미지를 담고 있다.</p>
 <p>다시 TENGGER라는 이름을 갖게 되었던 2013년으로 돌아가 본다. 시코쿠 순례를 알게 되기 전, 우리가 처음으로 만들었던 음반 《Electric Earth Creation》에는 공교롭게도 &lt;Mantra&gt; 라는 트랙이 있다.</p>
 </div>
-<div class="ig-gallery"><figure><img src="/media/cavajournal/길-위의-가족-밴드/08-a.jpg" alt="" loading="lazy" decoding="async"></figure></div>
-<div class="ig-gallery"><figure><video controls playsinline preload="metadata" poster="/media/cavajournal/길-위의-가족-밴드/09-poster.jpg" src="/media/cavajournal/길-위의-가족-밴드/09.mp4"></video></figure></div>
-<div class="ig-gallery"><figure><img src="/media/cavajournal/길-위의-가족-밴드/10.jpg" alt="" loading="lazy" decoding="async"></figure></div>
+<div class="ig-gallery"><figure><img src="/media/cavajournal/tengger-길-위의-가족-밴드/08-a.jpg" alt="" loading="lazy" decoding="async"></figure></div>
+<div class="ig-gallery"><figure><video controls playsinline preload="metadata" poster="/media/cavajournal/tengger-길-위의-가족-밴드/09-poster.jpg" src="/media/cavajournal/tengger-길-위의-가족-밴드/09.mp4"></video></figure></div>
+<div class="ig-gallery"><figure><img src="/media/cavajournal/tengger-길-위의-가족-밴드/10.jpg" alt="" loading="lazy" decoding="async"></figure></div>
 <div class="slide-text">
 <p>우리는 이미 순환하고 있었다. 시코쿠 순례처럼.</p>
 <p>있다 itta of TENGGER</p>
 <p>있다(itta)는 가족 음악 그룹 TENGGER의 멤버이자 시각예술가이다. 환경과 정신의 경계를 탐색하며 음악, 전시, 퍼포먼스를 통해 작업을 이어가고 있다. TENGGER는 최근 새 앨범 《SKY》를 발표했다.</p>
 </div>
-<div class="ig-gallery ig-cutout"><figure style="width:57%"><img src="/media/cavajournal/길-위의-가족-밴드/13-a.jpg" alt="" loading="lazy" decoding="async"></figure></div>
-<div class="ig-gallery ig-cutout"><figure style="width:57%"><img src="/media/cavajournal/길-위의-가족-밴드/15-a.jpg" alt="" loading="lazy" decoding="async"></figure></div>
+<div class="ig-gallery ig-cutout"><figure style="width:57%"><img src="/media/cavajournal/tengger-길-위의-가족-밴드/13-a.jpg" alt="" loading="lazy" decoding="async"></figure></div>
+<div class="ig-gallery ig-cutout"><figure style="width:57%"><img src="/media/cavajournal/tengger-길-위의-가족-밴드/15-a.jpg" alt="" loading="lazy" decoding="async"></figure></div>
 <div class="ig-caption">
 <p>: 시코쿠 순례와 필드 레코딩</p>
 <p>있다 itta of TENGGER <a class="mention" href="https://www.instagram.com/ittaexist/" rel="noopener">@ittaexist</a><br>있다(itta)는 가족 음악 그룹 TENGGER <a class="mention" href="https://www.instagram.com/tenggerland/" rel="noopener">@tenggerland</a> 의 멤버이자 시각예술가이다. 환경과 정신의 경계를 탐색하며 음악, 전시, 퍼포먼스를 통해 작업을 이어가고 있다. TENGGER는 최근 새 앨범 《SKY》를 발표했다.</p>
