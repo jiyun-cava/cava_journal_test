@@ -170,7 +170,7 @@ export function assemble(manuscript, slides) {
   if (manuscript.versions.length > 1) warnings.push(`The manuscript has ${manuscript.versions.length} versions; used "${version.name || "the first"}", which matches the slides.`);
 
   // Captions of this version's pictures (and of pictures outside any version).
-  const ownCaption = (im) => !im.section || im.section === version || im.section.bio || !manuscript.versions.includes(im.section);
+  const ownCaption = (im) => !im.section || im.section === version || im.section.bio;
   const captions = manuscript.images.map((im, i) => ({ i, text: im.caption, g: grams(im.caption), used: false, own: ownCaption(im) })).filter((c) => c.text && c.own);
   const titleG = grams(manuscript.title || "");
 
@@ -339,7 +339,8 @@ export function assemble(manuscript, slides) {
         target = pics.map((p) => ({ p, d: Math.min(Math.abs(g.top - (p.box.top + p.box.height)), Math.abs(g.bottom - p.box.top), (g.top >= p.box.top && g.top <= p.box.top + p.box.height) ? 0 : Infinity) }))
           .sort((a, b) => a.d - b.d)[0].p.block;
       }
-      if (target && !target.caption) {
+      const garbled = !c && (/[ㄱ-ㆎ]/.test(text) || (text.match(/[가-힣A-Za-z]/g) || []).length < text.replace(/\s/g, "").length * 0.6);
+      if (target && !target.caption && !garbled) {
         target.caption = c ? c.text : text.replace(/^\s*[←<«‹]\s*/, "");
         if (c) c.used = true;
         else target.captionFromSlide = true;
@@ -378,7 +379,7 @@ export function assemble(manuscript, slides) {
     if (c.used || !manuscript.images[c.i].fromText) continue;
     const after = manuscript.images[c.i].after ?? -1;
     const from = after < 0 ? -1 : (emittedAt[after] ?? (() => { const ks = Object.keys(emittedAt).map(Number).filter((k) => k <= after); return ks.length ? emittedAt[Math.max(...ks)] : -1; })());
-    const pic = out.find((b, j) => j > from && b.type === "media" && !b.caption && !(b.baked && b.alt) && !b.role);
+    const pic = out.find((b, j) => j > from && b.type === "media" && !b.caption && !(b.baked && b.alt) && (!b.role || after < 0));
     if (pic) { pic.caption = c.text; c.used = true; }
   }
   const lost = captions.filter((c) => !c.used && manuscript.images[c.i].fromText);
@@ -395,7 +396,7 @@ export function assemble(manuscript, slides) {
 /* ---------------- manuscripts on file ---------------- */
 
 // Bump when parsing changes, so articles built from manuscripts are rebuilt once.
-const PARSER_VERSION = 3;
+const PARSER_VERSION = 4;
 
 /**
  * Manuscripts kept in a folder: <name>.md or <name>.txt, with the captions of

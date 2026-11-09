@@ -281,7 +281,9 @@ function blocksHtml(blocks, permalink) {
     if (b.type === "media") {
       let fig = mediaHtml(b.media, permalink);
       if (b.alt) fig = fig.replace(' alt=""', ` alt="${escapeHtml(b.alt)}"`);
-      if (b.caption) fig = fig.replace(/<\/figure>$/, `<figcaption>${escapeHtml(b.caption)}</figcaption></figure>`);
+      // A photo whose caption is printed on it still gets the caption written under it.
+      const caption = b.caption || (b.baked && b.role !== "title" ? b.alt : "");
+      if (caption) fig = fig.replace(/<\/figure>$/, `<figcaption>${escapeHtml(caption)}</figcaption></figure>`);
       if (b.media.scale && b.media.scale < 0.95) {
         return `<div class="ig-gallery ig-cutout">${fig.replace(/^<figure>/, `<figure style="width:${Math.round(b.media.scale * 100)}%">`)}</div>`;
       }
