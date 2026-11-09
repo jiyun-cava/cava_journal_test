@@ -14,7 +14,21 @@ import { docxToManuscript } from "./docx.mjs";
 
 /* ---------------- manuscript text ---------------- */
 
-const unescape = (s) => s.replace(/\\([^\w\s])/g, "$1");
+const unescape = (s) => s.replace(/\\([^A-Za-z0-9\s])/g, "$1");
+
+/** The caption in a caption line of a manuscript, or null. */
+function captionText(line) {
+  const t = line.replace(/^\*(?!\*)\s*|\s*(?<!\*)\*([.。]?)$/g, "$1").trim(); // *italic* wrapper
+  const br = t.match(/^<([^<>]{2,})>[.]?\s*(.*)$/);
+  if (br) return /^https?:|\.(mov|mp4|jpe?g|png|gif)$/i.test(br[1].trim()) ? null : cleanCaption(`${br[1]} ${br[2]}`);
+  const lab = t.match(/^(?:표지|img\s*\d+|이미지\s*\d+|사진\s*\d+)(?:\s*[.:)]\s*|\s+)(.+)$/i) || t.match(/^\d{1,2}\s+(\S.+)$/);
+  return lab ? cleanCaption(lab[1]) : null;
+}
+
+/** A caption without notes to the designer ("(영상- img_1210)", "img_1216.mov"). */
+function cleanCaption(t) {
+  return t.replace(/[<(]?\s*(영상\s*-?\s*)?img_?\d+(\.(mov|mp4|jpe?g|png))?\s*[>)]?/gi, " ").replace(/^\s*-\s*/, "").replace(/\s+/g, " ").trim();
+}
 
 /**
  * Parse a manuscript exported as text/Markdown (Google Docs "read" output, .md or .txt).
@@ -33,12 +47,18 @@ export function parseManuscript(text, comments = []) {
   let bio = "";
   let current = null;
   const images = [];
+  let lastImageLine = false;
   for (const raw of text.replace(/\r/g, "").split("\n")) {
     // Images and their captions (comments anchored on the image).
     const imgRe = /<comment_start id=([^>]+)>\\?\[image\\?\]<comment_end id=\1>/g;
     let m;
-    while ((m = imgRe.exec(raw))) images.push({ caption: (byId.get(m[1]) || "").trim() });
-    let line = unescape(raw.replace(imgRe, "").replace(/<comment_(start|end) id=[^>]+>/g, "").replace(/\\?\[image\\?\]/g, "")).trim();
+    const before = images.length;
+    const anyImg = /<comment_start id=([^>]+)>\\?\[image\\?\]<comment_end id=\1>|\\?\[image\\?\]/g;
+    while ((m = anyImg.exec(raw))) images.push({ caption: m[1] ? (byId.get(m[1]) || "").trim() : "", section: current, after: (current?.blocks.length ?? 0) - 1 });
+    const rest = raw.replace(imgRe, "");
+    let line = unescape(rest.replace(/<comment_(start|end) id=[^>]+>/g, "").replace(/\\?\[image\\?\]/g, "")).trim();
+    const imageLine = images.length > before && !line;
+    if (imageLine) { lastImageLine = true; continue; }
     const head = line.match(/^#{1,3}\s+(.*)$/);
     if (head) {
       // "### **Title**": a bold heading is the title of the version that follows.
@@ -49,6 +69,31 @@ export function parseManuscript(text, comments = []) {
       continue;
     }
     if (!line) continue;
+    if (/^[_\-=~*·.]{3,}$/.test(line)) continue; // a separator line
+    if (/^~~[^~]+~~$/.test(line)) continue; // struck-out line
+    // A caption line ("*img 1. …*", "표지 …", "1 …", "<…>"): goes with the picture just above it,
+    // or with the next picture of the version, instead of into the text.
+    const cap = !current?.bio && captionText(line);
+    if (cap) {
+      const last = images[images.length - 1];
+      if (lastImageLine && last && !last.caption) { last.caption = cap; last.fromText = true; }
+      else images.push({ caption: cap, section: current, fromText: true, after: (current?.blocks.length ?? 0) - 1 });
+      lastImageLine = !!(lastImageLine && images[images.length - 1]?.caption === cap);
+      continue;
+    }
+    // "<IMG_1072.mov>", "img_1216.mov": a video placed here; the lines under it are its caption.
+    if (/^[<(]?\s*(영상\s*-?\s*)?img_?\d+\.(mov|mp4)\s*[>)]?$/i.test(line)) { images.push({ caption: "", section: current, after: (current?.blocks.length ?? 0) - 1 }); lastImageLine = true; continue; }
+    // Short lines right under a picture are its caption ("쿤스트뮤지엄에서의 조식").
+    const under = lastImageLine && !current?.bio && images.length;
+    if (under && line.length >= 4 && line.length <= 90 && !/다[.!?…"”']*(\s|$)/.test(line) && !/^(\*\*|\d{1,2}[.)]\s)/.test(line)) {
+      const last = images[images.length - 1];
+      const t = cleanCaption(line.replace(/^\*+\s*|\s*\*+$/g, ""));
+      if (!t) continue;
+      last.caption = last.fromText ? [last.caption, t].filter(Boolean).join(" ") : t; // the Doc's own words beat a comment
+      last.fromText = true;
+      continue;
+    }
+    lastImageLine = false;
     // *italic* / ***bold italic*** lines (lyrics, captions): keep the words, drop the markers.
     if (/^\*{1}[^*]|[^*]\*{1}$/.test(line) && /^\*+.*\*+$/.test(line)) { const t = line.replace(/^\*+\s*|\s*\*+$/g, ""); if (!t) continue; line = t; }
     if (!current) { current = { name: "", title: "", blocks: [], bio: false }; sections.push(current); }
@@ -124,7 +169,9 @@ export function assemble(manuscript, slides) {
   const { v: version, g: blockGrams } = scored[0];
   if (manuscript.versions.length > 1) warnings.push(`The manuscript has ${manuscript.versions.length} versions; used "${version.name || "the first"}", which matches the slides.`);
 
-  const captions = manuscript.images.map((im, i) => ({ i, text: im.caption, g: grams(im.caption), used: false })).filter((c) => c.text);
+  // Captions of this version's pictures (and of pictures outside any version).
+  const ownCaption = (im) => !im.section || im.section === version || im.section.bio || !manuscript.versions.includes(im.section);
+  const captions = manuscript.images.map((im, i) => ({ i, text: im.caption, g: grams(im.caption), used: false, own: ownCaption(im) })).filter((c) => c.text && c.own);
   const titleG = grams(manuscript.title || "");
 
   // 2) Which stretch of the manuscript the slides show. A Doc may also hold other
@@ -179,6 +226,7 @@ export function assemble(manuscript, slides) {
 
   const out = [];
   let cursor = lo - 1; // last manuscript block placed
+  const emittedAt = {}; // manuscript block → its place in out
   const emitUpTo = (idx) => {
     for (let k = cursor + 1; k <= idx; k++) {
       const b = version.blocks[k];
@@ -189,6 +237,7 @@ export function assemble(manuscript, slides) {
         if (prev && prev.type === "text") prev.paragraphs.push(b.text);
         else out.push({ type: "text", paragraphs: [b.text], notes: [] });
       }
+      emittedAt[k] = out.length - 1;
     }
     cursor = Math.max(cursor, idx);
   };
@@ -324,6 +373,16 @@ export function assemble(manuscript, slides) {
     });
     warnings.push(`Captions for ${run.length} picture(s) were placed by their order in the manuscript. Check they're on the right pictures.`);
   }
+  // Captions written in the text: the first free picture after the paragraph they follow.
+  for (const c of captions) {
+    if (c.used || !manuscript.images[c.i].fromText) continue;
+    const after = manuscript.images[c.i].after ?? -1;
+    const from = after < 0 ? -1 : (emittedAt[after] ?? (() => { const ks = Object.keys(emittedAt).map(Number).filter((k) => k <= after); return ks.length ? emittedAt[Math.max(...ks)] : -1; })());
+    const pic = out.find((b, j) => j > from && b.type === "media" && !b.caption && !(b.baked && b.alt) && !b.role);
+    if (pic) { pic.caption = c.text; c.used = true; }
+  }
+  const lost = captions.filter((c) => !c.used && manuscript.images[c.i].fromText);
+  if (lost.length) warnings.push(`${lost.length} caption(s) from the manuscript couldn't be put on a picture: ${lost.map((c) => `"${c.text.slice(0, 40)}"`).join(", ")}.`);
   for (const b of pictures) if (b.captionFromSlide) warnings.push(`A caption was read from the slide, not the manuscript ("${b.caption.slice(0, 50)}…"). Check its spelling.`);
 
   if (knownAuthor) author = knownAuthor; // the manuscript's folder name beats reading it off a slide
@@ -336,7 +395,7 @@ export function assemble(manuscript, slides) {
 /* ---------------- manuscripts on file ---------------- */
 
 // Bump when parsing changes, so articles built from manuscripts are rebuilt once.
-const PARSER_VERSION = 2;
+const PARSER_VERSION = 3;
 
 /**
  * Manuscripts kept in a folder: <name>.md or <name>.txt, with the captions of
