@@ -82,7 +82,7 @@ instagram_permalink: "https://www.instagram.com/p/Dbuz2lwkhY0/"
 </div>
 <div class="ig-gallery ig-cutout"><figure style="width:90%"><img src="/media/cavajournal/i-m-f-모방-변형-날조/14-a.jpg" alt="" loading="lazy" decoding="async"><figcaption>내가 걸어서 보낸, 혹은 걸어주었으면 하는 기타 이펙트 체인에 관한 노트</figcaption></figure></div>
 <div class="ig-gallery"><figure><video controls playsinline preload="metadata" poster="/media/cavajournal/i-m-f-모방-변형-날조/15-poster.jpg" src="/media/cavajournal/i-m-f-모방-변형-날조/15.mp4"></video><figcaption>가사 작성 중인 성건 / 중간 긴급 회의 때 성식과 성건</figcaption></figure></div>
-<div class="ig-gallery"><figure><img src="/media/cavajournal/i-m-f-모방-변형-날조/16.jpg" alt="회의하다가 싸우는 세정과 성식" loading="lazy" decoding="async"></figure></div>
+<div class="ig-gallery"><figure><img src="/media/cavajournal/i-m-f-모방-변형-날조/16.jpg" alt="회의하다가 싸우는 세정과 성식" loading="lazy" decoding="async"><figcaption>회의하다가 싸우는 세정과 성식</figcaption></figure></div>
 <div class="ig-gallery"><figure><img src="/media/cavajournal/i-m-f-모방-변형-날조/17-a.jpg" alt="" loading="lazy" decoding="async"><figcaption>부산 지하철에서 성식, 세정, 성건 / 혼자 보컬 녹음하고 온 성건이 보내온 사진. 기간이 만료돼서 사진이 이렇다. / 2차 믹싱 회의 / 작년 대만 공연 성식</figcaption></figure></div>
 <div class="slide-text">
 <p>성건이가 문래 합주실에서 보컬 녹음을 하다가 다른 합주실에서 녹음을 했는데, 뭔가 다르다며 벽이 달라서 그런가 하고 나에게 물었다.</p>
