@@ -381,7 +381,7 @@ await t("a post imported before its manuscript is rebuilt once the manuscript is
 await t("site builds with synced posts", () => {
   execFileSync("npx", ["@11ty/eleventy", "--quiet"], { cwd: tmp, env: { ...process.env, ELEVENTY_RUN_MODE: "build" } });
   const page = fs.readFileSync(path.join(tmp, "_site/blogs/cavajournal/홍길동-어느-오후의-산책/index.html"), "utf8");
-  assert.match(page, /Originally posted on <a href="https:\/\/www.instagram.com\/p\/TEST1\/"/);
+  assert.doesNotMatch(page, /Originally posted on/); // the Instagram source line is not shown
   assert.ok(fs.existsSync(path.join(tmp, "_site/blogs/nowjournal/index.html")));
   const idx = JSON.parse(fs.readFileSync(path.join(tmp, "_site/search-index.json"), "utf8"));
   assert.ok(idx.some((p) => p.t.includes("홍길동")));

@@ -6,5 +6,8 @@
     <label class="visually-hidden" for="site-q">Search</label>
     <input id="site-q" name="q" type="search" placeholder="Search" autocomplete="off" enterkeyhint="search">
   </form>
-  <a class="about-link" href="/about/" {% if page.url == '/about/' %}aria-current="page"{% endif %}>ABOUT</a>
+  <nav class="foot-nav" aria-label="Pages">
+    <a href="/about/" {% if page.url == '/about/' %}aria-current="page"{% endif %}>ABOUT</a>
+    <a href="/contributors/" {% if page.url == '/contributors/' %}aria-current="page"{% endif %}>CONTRIBUTORS</a>
+  </nav>
 </header>

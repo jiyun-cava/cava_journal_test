@@ -76,6 +76,43 @@
     form.addEventListener("submit", function (e) { e.preventDefault(); filter(); input.blur(); });
   }
 
+  // ---- Contributors: a name opens a panel over the right half with their articles.
+  var panel = document.getElementById("cpanel");
+  if (panel) {
+    var pname = document.getElementById("cpanel-name");
+    var plist = document.getElementById("cpanel-list");
+    var links = Array.prototype.slice.call(document.querySelectorAll("[data-contributor]"));
+    var open = function (id, push) {
+      var a = document.querySelector('[data-contributor="' + id + '"]');
+      var posts = document.getElementById(id + "-posts");
+      if (!a || !posts) return close(push);
+      pname.textContent = a.textContent;
+      plist.innerHTML = posts.innerHTML;
+      links.forEach(function (l) { l.setAttribute("aria-current", l === a ? "true" : "false"); });
+      panel.classList.add("is-open");
+      panel.setAttribute("aria-hidden", "false");
+      panel.scrollTop = 0;
+      if (push) history.replaceState(null, "", "#" + id);
+    };
+    var close = function (push) {
+      panel.classList.remove("is-open");
+      panel.setAttribute("aria-hidden", "true");
+      links.forEach(function (l) { l.setAttribute("aria-current", "false"); });
+      if (push) history.replaceState(null, "", location.pathname + location.search);
+    };
+    links.forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        var id = a.getAttribute("data-contributor");
+        if (panel.classList.contains("is-open") && a.getAttribute("aria-current") === "true") close(true);
+        else open(id, true);
+      });
+    });
+    panel.querySelector(".cpanel__close").addEventListener("click", function () { close(true); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") close(true); });
+    if (location.hash.length > 1) open(location.hash.slice(1), false);
+  }
+
   // ---- Share button on articles
   document.querySelectorAll("[data-share]").forEach(function (btn) {
     btn.addEventListener("click", function () {

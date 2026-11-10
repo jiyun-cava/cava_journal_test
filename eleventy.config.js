@@ -57,6 +57,21 @@ export default function (eleventyConfig) {
   eleventyConfig.addCollection("allPosts", (api) =>
     api.getFilteredByGlob("src/posts/*/*.md").filter(visible).sort(byDateDesc)
   );
+  // Everyone who has written for the journal, A→Z / 가나다, with their articles (newest first).
+  eleventyConfig.addCollection("contributors", (api) => {
+    const by = new Map();
+    for (const p of api.getFilteredByGlob("src/posts/*/*.md").filter(visible).sort(byDateDesc)) {
+      const name = String(p.data.author || "").trim();
+      if (!name) continue;
+      const title = String(p.data.title || "");
+      const short = title.startsWith(name + " — ") ? title.slice(name.length + 3) : title;
+      if (!by.has(name)) by.set(name, []);
+      by.get(name).push({ title: short, url: p.url, date: p.date });
+    }
+    return [...by].map(([name, posts], i) => ({ name, id: "c" + (i + 1), posts }))
+      .sort((a, b) => a.name.localeCompare(b.name, "ko"))
+      .map((c, i) => ({ ...c, id: "c" + (i + 1) }));
+  });
 
   const fmt = (opts) => (d) =>
     new Intl.DateTimeFormat("en-US", { timeZone: config.timezone, ...opts }).format(new Date(d));

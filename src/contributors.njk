@@ -1,0 +1,26 @@
+---
+layout: layouts/base.njk
+permalink: /contributors/
+title: Contributors
+bodyClass: is-contributors
+---
+<section class="contributors">
+  <h1 class="visually-hidden">Contributors</h1>
+  <ul class="contributors__list">
+    {%- for c in collections.contributors %}
+    <li>
+      <a href="#{{ c.id }}" data-contributor="{{ c.id }}" aria-controls="cpanel" aria-current="false">{{ c.name }}</a>
+      <ul class="contributors__posts" id="{{ c.id }}-posts">
+        {%- for p in c.posts %}
+        <li><a href="{{ p.url }}">{{ p.title }}</a><time datetime="{{ p.date | isoDate }}">{{ p.date | displayDate }}</time></li>
+        {%- endfor %}
+      </ul>
+    </li>
+    {%- endfor %}
+  </ul>
+</section>
+<aside class="cpanel" id="cpanel" aria-label="Articles" aria-hidden="true">
+  <button class="cpanel__close" type="button">CLOSE</button>
+  <h2 class="cpanel__name" id="cpanel-name"></h2>
+  <ul class="cpanel__list" id="cpanel-list"></ul>
+</aside>

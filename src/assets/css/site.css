@@ -47,11 +47,12 @@ main { min-height: 60vh; }
 }
 .site-search input::placeholder { color: #000; opacity: 1; }
 .site-search input::-webkit-search-decoration { -webkit-appearance: none; }
-.about-link {
+.foot-nav {
   position: fixed; z-index: 30; left: var(--gutter); bottom: var(--top);
-  font-size: 16px; font-weight: 500; letter-spacing: .04em; line-height: 1; color: #000;
+  display: flex; gap: clamp(16px, 2.4vw, 28px);
 }
-.about-link:hover, .about-link[aria-current="page"] { text-decoration: line-through; text-decoration-thickness: 1px; }
+.foot-nav a { font-size: 16px; font-weight: 500; letter-spacing: .04em; line-height: 1; color: #000; }
+.foot-nav a:hover, .foot-nav a[aria-current="page"] { text-decoration: line-through; text-decoration-thickness: 1px; }
 main { padding-top: calc(var(--top) + var(--logo-w) * .62 + clamp(20px, 3vw, 36px)); padding-bottom: clamp(64px, 8vw, 96px); }
 
 /* ---------- Home: every article's cover, in a masonry wall ---------- */
@@ -219,3 +220,34 @@ main { padding-top: calc(var(--top) + var(--logo-w) * .62 + clamp(20px, 3vw, 36p
 
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* Instagram caption copy, tags and source line are not shown on articles. */
+.ig-caption { display: none; }
+
+/* ---------- Contributors: names on the left, a panel with their articles on the right half ---------- */
+.contributors { padding: 0 var(--gutter); }
+.contributors__list { list-style: none; margin: 0; padding: 0; columns: 2 240px; column-gap: var(--gutter); max-width: 50%; }
+.contributors__list li { break-inside: avoid; }
+.contributors__list a { display: inline-block; font-size: clamp(18px, 1.8vw, 22px); line-height: 1.7; color: #000; }
+.contributors__list a:hover, .contributors__list a[aria-current="true"] { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+.contributors__posts { display: none; }
+.cpanel {
+  position: fixed; z-index: 25; top: 0; right: 0; bottom: 0; width: 50%;
+  background: #fff; border-left: 1px solid #000; overflow-y: auto;
+  padding: calc(var(--top) + 64px) var(--gutter) 80px;
+  transform: translateX(100%); transition: transform .3s cubic-bezier(.2,.7,.2,1); visibility: hidden;
+}
+.cpanel.is-open { transform: none; visibility: visible; }
+.cpanel__name { font-size: clamp(22px, 2.4vw, 30px); font-weight: 600; margin: 0 0 24px; letter-spacing: -.02em; }
+.cpanel__list { list-style: none; margin: 0; padding: 0; }
+.cpanel__list li { padding: 14px 0; border-top: 1px solid var(--line); }
+.cpanel__list a { font-size: 18px; line-height: 1.5; color: #000; }
+.cpanel__list a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+.cpanel__list time { display: block; font-size: 13px; color: var(--muted); margin-top: 4px; }
+.cpanel__close { position: absolute; top: calc(var(--top) + 52px); right: var(--gutter); border: 0; background: none; font: inherit; font-size: 14px; cursor: pointer; padding: 4px 0; }
+.cpanel__close:hover { text-decoration: line-through; }
+.is-contributors .site-search { z-index: 31; }
+@media (max-width: 760px) {
+  .contributors__list { max-width: none; columns: 1; }
+  .cpanel { width: 100%; border-left: 0; }
+}
