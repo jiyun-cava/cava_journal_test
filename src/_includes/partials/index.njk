@@ -1,0 +1,52 @@
+{%- set posts = collections.allPosts %}
+<section class="index" id="index" data-view="1" aria-label="All articles">
+  <div class="tools">
+    <div class="tools__group" role="group" aria-label="Sort">
+      <button class="tools__btn" type="button" data-sort="new" aria-pressed="true">Newest</button>
+      <button class="tools__btn" type="button" data-sort="old" aria-pressed="false">Oldest</button>
+    </div>
+    <label class="tools__select">
+      <span>Year</span>
+      <select id="f-year">
+        <option value="">All</option>
+        {%- for y in posts | years %}
+        <option value="{{ y }}">{{ y }}</option>
+        {%- endfor %}
+      </select>
+    </label>
+    <label class="tools__select">
+      <span>Genre</span>
+      <select id="f-genre">
+        <option value="">All</option>
+        {%- for g in posts | genres %}
+        <option value="{{ g }}">{{ g }}</option>
+        {%- endfor %}
+      </select>
+    </label>
+    <div class="tools__group tools__views" role="group" aria-label="View">
+      <span class="tools__label">View</span>
+      <button class="tools__btn" type="button" data-view-btn="1" aria-pressed="true" title="List">01</button>
+      <button class="tools__btn" type="button" data-view-btn="2" aria-pressed="false" title="Posters">02</button>
+      <button class="tools__btn" type="button" data-view-btn="3" aria-pressed="false" title="Titles">03</button>
+    </div>
+  </div>
+  <ol class="rows" id="rows">
+    {%- for post in posts %}
+    {%- set d = post.data %}
+    <li class="row" data-date="{{ post.date | isoDate }}" data-year="{{ post.date | year }}" data-genre="{{ d.genreList | join('|') }}" data-q="{{ d.title }} {{ d.author or '' }} {{ d.genreList | join(' ') }}">
+      <a href="{{ post.url }}" data-open{% if post.url == page.url %} aria-current="page"{% endif %}>
+        <span class="row__poster">
+          {%- if d.cover %}<img src="{{ d.cover }}" alt="" loading="{{ 'eager' if loop.index0 < 8 else 'lazy' }}" decoding="async">{% endif -%}
+        </span>
+        <span class="row__text">
+          <span class="row__author">{{ d.author or site.name }}</span>
+          <span class="row__title">{{ d.title | shortTitle(d.author) }}</span>
+        </span>
+        <span class="row__genre">{{ d.genreList | join(", ") }}</span>
+        <time class="row__date" datetime="{{ post.date | isoDate }}">{{ post.date | numDate }}</time>
+      </a>
+    </li>
+    {%- endfor %}
+  </ol>
+  <p class="rows__none" id="rows-none" hidden>검색 결과가 없습니다.</p>
+</section>

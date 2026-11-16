@@ -1,21 +1,6 @@
 ---
-layout: layouts/base.njk
+layout: layouts/split.njk
 permalink: /
-bodyClass: is-home
+bodyClass: is-index
 ---
 <h1 class="visually-hidden">{{ site.name }}</h1>
-<ul class="wall" id="wall">
-  {%- for post in collections.allPosts %}
-  {%- set sz = post.data.cover | imageSize %}
-  <li class="tile" data-q="{{ post.data.title }} {{ post.data.author or '' }}" style="--r: {{ sz.w }} / {{ sz.h }}">
-    <a href="{{ post.url }}" aria-label="{{ post.data.title }}">
-      {%- if post.data.cover %}
-      <img src="{{ post.data.cover }}" alt="" width="{{ sz.w }}" height="{{ sz.h }}" loading="{{ 'eager' if loop.index0 < 10 else 'lazy' }}" decoding="async">
-      {%- else %}
-      <span class="tile__empty">{{ post.data.title }}</span>
-      {%- endif %}
-    </a>
-  </li>
-  {%- endfor %}
-</ul>
-<p class="wall__none" id="wall-none" hidden>검색 결과가 없습니다.</p>

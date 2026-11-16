@@ -2,12 +2,17 @@
   <a class="logo" href="/" aria-label="{{ site.name }} home">
     {%- if site.logo %}<img src="{{ site.logo }}" alt="{{ site.name }}" width="450" height="278">{% else %}<span>{{ site.name }}</span>{% endif -%}
   </a>
-  <form class="site-search" action="/" role="search">
-    <label class="visually-hidden" for="site-q">Search</label>
-    <input id="site-q" name="q" type="search" placeholder="Search" autocomplete="off" enterkeyhint="search">
-  </form>
-  <nav class="foot-nav" aria-label="Pages">
-    <a href="/about/" {% if page.url == '/about/' %}aria-current="page"{% endif %}>ABOUT</a>
-    <a href="/contributors/" {% if page.url == '/contributors/' %}aria-current="page"{% endif %}>CONTRIBUTORS</a>
+  <nav class="site-nav" aria-label="Main">
+    <a href="/" {% if page.url == '/' or '/blogs/' in page.url %}aria-current="page"{% endif %}>Journal</a>
+    <a href="/contributors/" {% if page.url == '/contributors/' %}aria-current="page"{% endif %}>Contributors</a>
+    <a href="/about/" {% if page.url == '/about/' %}aria-current="page"{% endif %}>About</a>
+    <form class="site-search" action="/" role="search">
+      <label class="visually-hidden" for="site-q">Search</label>
+      <input id="site-q" name="q" type="search" placeholder="SEARCH" autocomplete="off" enterkeyhint="search">
+    </form>
+  </nav>
+  <nav class="site-util" aria-label="Elsewhere">
+    <a href="https://instagram.com/{{ site.instagramHandle }}" rel="noopener">IG</a>
+    <a href="mailto:{{ site.email }}">Email</a>
   </nav>
 </header>

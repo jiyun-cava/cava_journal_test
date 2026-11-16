@@ -3,6 +3,13 @@
 export default {
   layout: "layouts/article.njk",
   eleventyComputed: {
+    // Genres: `genre: ["Music"]` in a post's front matter wins; otherwise src/_data/genreMap.json (by handle).
+    genreList: (data) => {
+      const own = [].concat(data.genre || []).filter(Boolean);
+      if (own.length) return own;
+      const handle = String(data.handle || data.page.fileSlug).normalize("NFC");
+      return (data.genreMap || {})[handle] || [];
+    },
     journal: (data) => data.journal || data.page.filePathStem.split("/")[2],
     permalink: (data) => {
       const journal = data.journal || data.page.filePathStem.split("/")[2];

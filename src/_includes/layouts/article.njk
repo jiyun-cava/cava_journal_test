@@ -1,25 +1,31 @@
 ---
-layout: layouts/base.njk
-bodyClass: is-article
+layout: layouts/split.njk
+bodyClass: is-index has-open
 ---
 {%- set list = collections.allPosts %}
 {%- set nav = list | prevNext(page.url) %}
 <article class="article">
+  <header class="article__header">
+    <a class="article__back" href="/" data-close>Back to all</a>
+    <h1 class="article__title">{{ title }}</h1>
+    <p class="article__meta">
+      <time datetime="{{ page.date | isoDate }}">{{ page.date | numDate }}</time>
+      {%- for g in genreList %}<span class="article__genre">{{ g }}</span>{% endfor %}
+    </p>
+  </header>
+
   {%- if cover %}
   <figure class="article__cover">
     <img src="{{ cover }}" alt="{{ title }}" fetchpriority="high">
   </figure>
   {%- endif %}
 
-  <header class="article__header">
-    <h1 class="article__title">{{ title }}</h1>
-    <p class="article__meta">
-      <time datetime="{{ page.date | isoDate }}">{{ page.date | displayDate }}</time>
-    </p>
-  </header>
-
-  <div class="article__body">
-    {{ content | safe }}
+  <div class="article__cols">
+    {#- Filled by site.js on wide panes: the article's pictures, pinned beside the text. -#}
+    <div class="article__stage" aria-hidden="true"></div>
+    <div class="article__body">
+      {{ content | safe }}
+    </div>
   </div>
 
   <div class="article__share">
@@ -28,7 +34,7 @@ bodyClass: is-article
   </div>
 
   <nav class="article__nav" aria-label="More articles">
-    {%- if nav.newer %}<a class="article__nav-newer" href="{{ nav.newer.url }}"><small>Newer</small><span>{{ nav.newer.data.title }}</span></a>{% else %}<span></span>{% endif %}
-    {%- if nav.older %}<a class="article__nav-older" href="{{ nav.older.url }}"><small>Older</small><span>{{ nav.older.data.title }}</span></a>{% endif %}
+    {%- if nav.newer %}<a class="article__nav-newer" href="{{ nav.newer.url }}" data-open><small>Newer</small><span>{{ nav.newer.data.title }}</span></a>{% else %}<span></span>{% endif %}
+    {%- if nav.older %}<a class="article__nav-older" href="{{ nav.older.url }}" data-open><small>Older</small><span>{{ nav.older.data.title }}</span></a>{% endif %}
   </nav>
 </article>

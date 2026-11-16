@@ -13,6 +13,7 @@ automatically.
 site.config.json            ← names, menu, Instagram rules (edit this)
 src/posts/<journal>/*.md    ← one file per article (front matter + HTML)
 src/media/                  ← images and videos
+src/_data/genreMap.json     ← genre per article (or add `genre: ["Music"]` to a post's front matter)
 scripts/import-shopify.mjs  ← one-time migration
 scripts/sync-instagram.mjs  ← Instagram → articles
 .github/workflows/          ← deploy + token refresh

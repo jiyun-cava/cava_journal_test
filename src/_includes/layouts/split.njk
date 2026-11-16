@@ -1,0 +1,8 @@
+---
+layout: layouts/base.njk
+---
+{#- The index on the left; the open article (if any) in the pane on the right. -#}
+<div class="split" id="split">
+  {% include "partials/index.njk" %}
+  <section class="pane" id="pane" aria-label="Article" aria-live="polite">{{ content | safe }}</section>
+</div>

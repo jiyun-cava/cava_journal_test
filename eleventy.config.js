@@ -76,6 +76,15 @@ export default function (eleventyConfig) {
   const fmt = (opts) => (d) =>
     new Intl.DateTimeFormat("en-US", { timeZone: config.timezone, ...opts }).format(new Date(d));
   eleventyConfig.addFilter("displayDate", fmt({ year: "numeric", month: "long", day: "2-digit" }));
+  // 05 13 2026 — the index rows
+  eleventyConfig.addFilter("numDate", (d) => fmt({ year: "numeric", month: "2-digit", day: "2-digit" })(d).replace(/\D+/g, " "));
+  eleventyConfig.addFilter("year", fmt({ year: "numeric" }));
+  eleventyConfig.addFilter("years", (posts) => [...new Set(posts.map((p) => fmt({ year: "numeric" })(p.date)))].sort().reverse());
+  eleventyConfig.addFilter("genres", (posts) => [...new Set(posts.flatMap((p) => p.data.genreList || []))].sort());
+  eleventyConfig.addFilter("shortTitle", (title, author) => {
+    const t = String(title || ""), a = String(author || "").trim();
+    return a && t.startsWith(a + " — ") ? t.slice(a.length + 3) : t;
+  });
   eleventyConfig.addFilter("isoDate", (d) => new Date(d).toISOString());
   eleventyConfig.addFilter("stripHtml", stripHtml);
   eleventyConfig.addFilter("excerpt", (html, len) => excerpt(html, len));
